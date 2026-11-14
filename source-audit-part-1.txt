@@ -1,0 +1,1389 @@
+﻿MAN THAN PAY - COMPLETE SOURCE CODE AUDIT
+
+==========================================================================================
+FILE: .\eslint.config.mjs
+==========================================================================================
+import { dirname } from "path";
+import { fileURLToPath } from "url";
+import { FlatCompat } from "@eslint/eslintrc";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+const compat = new FlatCompat({
+  baseDirectory: __dirname,
+});
+
+const eslintConfig = [
+  ...compat.extends("next/core-web-vitals", "next/typescript"),
+  {
+    ignores: [
+      "node_modules/**",
+      ".next/**",
+      "out/**",
+      "build/**",
+      "next-env.d.ts",
+    ],
+  },
+];
+
+export default eslintConfig;
+
+
+==========================================================================================
+FILE: .\jsconfig.json
+==========================================================================================
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  }
+}
+
+==========================================================================================
+FILE: .\next.config.mjs
+==========================================================================================
+/** @type {import('next').NextConfig} */
+const nextConfig = {};
+
+export default nextConfig;
+
+
+==========================================================================================
+FILE: .\package.json
+==========================================================================================
+{
+  "name": "manthanpay-admin-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "next": "15.5.28",
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "15.5.28",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
+
+
+==========================================================================================
+FILE: .\postcss.config.mjs
+==========================================================================================
+const config = {
+  plugins: ["@tailwindcss/postcss"],
+};
+
+export default config;
+
+
+==========================================================================================
+FILE: .\src\app\(auth)\forgot-password\page.js
+==========================================================================================
+import ForgotPasswordForm from "@/components/auth/ForgotPasswordForm";
+
+export default function ForgotPasswordPage() {
+  return <ForgotPasswordForm />;
+}
+
+
+==========================================================================================
+FILE: .\src\app\(auth)\layout.js
+==========================================================================================
+import "@/styles/auth/login.css";
+import "@/styles/auth/forgot-password.css";
+
+export default function AuthLayout({ children }) {
+  return children;
+}
+
+
+==========================================================================================
+FILE: .\src\app\(auth)\login\page.js
+==========================================================================================
+import LoginForm from "@/components/auth/LoginForm";
+
+export default function LoginPage() {
+  return <LoginForm />;
+}
+
+
+==========================================================================================
+FILE: .\src\app\(dashboard)\account-settings\page.js
+==========================================================================================
+import AccountSettingsFeature from "@/features/account-settings";
+
+export default function AccountSettingsPage() {
+  return <AccountSettingsFeature />;
+}
+
+
+==========================================================================================
+FILE: .\src\app\(dashboard)\dashboard\aadhaar-esign\page.js
+==========================================================================================
+import AadhaarESignUpload from "@/features/aadhaar-esign/components/AadhaarESignUpload";
+
+export default function AadhaarESignPage() {
+  return (
+    <main className="min-h-screen bg-slate-50 px-4 py-8 pb-10 md:px-8">
+      <AadhaarESignUpload />
+    </main>
+  );
+}
+
+
+==========================================================================================
+FILE: .\src\app\(dashboard)\dashboard\kyc\page.js
+==========================================================================================
+export const dynamic = 'force-dynamic';
+
+import KycList from "@/features/kyc/components/KycList";
+
+export default function KycPage() {
+  return (
+    <main className="w-full min-w-0 px-4 py-6 pb-14 md:px-6">
+      <KycList />
+    </main>
+  );
+}
+
+
+==========================================================================================
+FILE: .\src\app\(dashboard)\dashboard\page.js
+==========================================================================================
+import StatCard from "@/components/StatCard";
+import { dashboardStats, recentTransactions } from "@/data/dashboardData";
+
+export default function DashboardPage() {
+  return (
+    <div className="min-h-screen bg-slate-50 px-5 py-8 pb-10 md:px-8">
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-slate-800">Overview</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          Monitor your ManthanPay operations.
+        </p>
+      </div>
+
+      <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        Sample dashboard data — live backend data is not connected yet.
+      </div>
+
+      <section className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+        {dashboardStats.map((stat) => (
+          <StatCard key={stat.title} {...stat} />
+        ))}
+      </section>
+
+      <section className="mt-8 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-5">
+          <div>
+            <h3 className="font-semibold text-slate-800">Recent Transactions</h3>
+            <p className="mt-1 text-xs text-slate-500">Latest sample activity</p>
+          </div>
+          <button className="text-sm font-medium text-blue-600">View All</button>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[650px] text-left text-sm">
+            <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+              <tr>
+                <th className="px-5 py-4">Transaction ID</th>
+                <th className="px-5 py-4">Customer</th>
+                <th className="px-5 py-4">Type</th>
+                <th className="px-5 py-4">Amount</th>
+                <th className="px-5 py-4">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {recentTransactions.map((transaction) => (
+                <tr key={transaction.id}>
+                  <td className="px-5 py-4 font-medium text-slate-700">{transaction.id}</td>
+                  <td className="px-5 py-4 text-slate-600">{transaction.name}</td>
+                  <td className="px-5 py-4 text-slate-600">{transaction.type}</td>
+                  <td className="px-5 py-4 font-medium text-slate-700">{transaction.amount}</td>
+                  <td className="px-5 py-4">
+                    <span className={`rounded-full px-3 py-1 text-xs font-medium ${
+                      transaction.status === "Success"
+                        ? "bg-green-50 text-green-700"
+                        : transaction.status === "Pending"
+                          ? "bg-amber-50 text-amber-700"
+                          : "bg-red-50 text-red-700"
+                    }`}>
+                      {transaction.status}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+
+==========================================================================================
+FILE: .\src\app\(dashboard)\layout.js
+==========================================================================================
+
+import Sidebar from "@/components/Sidebar";
+import Topbar from "@/components/Topbar";
+
+export default function DashboardLayout({ children }) {
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <Topbar />
+      <Sidebar />
+
+      <main className="min-h-screen pt-20 pb-10 md:pl-64">
+        {children}
+      </main>
+
+      <footer className="fixed bottom-0 left-0 right-0 z-30 flex h-10 items-center justify-center border-t border-blue-400/20 bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 px-3 md:left-64">
+        <p className="text-xs font-medium tracking-wide text-slate-200">
+          © 2026 <span className="font-bold text-blue-400">ManthanPay</span>. All rights reserved.
+        </p>
+      </footer>
+    </div>
+  );
+}
+
+
+==========================================================================================
+FILE: .\src\app\(dashboard)\profile\page.js
+==========================================================================================
+import ProfileFeature from "@/features/profile";
+
+export default function ProfilePage() {
+  return <ProfileFeature />;
+}
+
+
+==========================================================================================
+FILE: .\src\app\globals.css
+==========================================================================================
+@import "tailwindcss";
+
+:root {
+  --background: #f8fafc;
+  --foreground: #203b5d;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+
+==========================================================================================
+FILE: .\src\app\layout.js
+==========================================================================================
+import "./globals.css";
+
+export const metadata = {
+  title: "ManthanPay Admin",
+  description: "ManthanPay Administration Portal",
+};
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <body>{children}</body>
+    </html>
+  );
+}
+
+
+==========================================================================================
+FILE: .\src\app\page.js
+==========================================================================================
+import { redirect } from "next/navigation";
+
+export default function HomePage() {
+  redirect("/login");
+}
+
+
+==========================================================================================
+FILE: .\src\components\auth\ForgotPasswordForm.jsx
+==========================================================================================
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { requestPasswordReset } from "@/services/auth/authService";
+
+
+export default function ForgotPassword() {
+  const router = useRouter();
+  const handleBackToLogin = () => router.push("/login");
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+
+  const handleSendTemporaryPassword = async (event) => {
+    event.preventDefault();
+    setError("");
+
+    if (!email.trim()) {
+      setError("Please enter your registered email.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      await requestPasswordReset({
+        method: "POST",
+        body: {
+          email: email.trim(),
+        },
+      });
+
+      setShowSuccessPopup(true);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="forgot-page">
+
+      {/* BACKGROUND ANIMATIONS */}
+      <div className="forgot-bg-decoration">
+        <div className="forgot-circle circle-one"></div>
+        <div className="forgot-circle circle-two"></div>
+        <div className="forgot-circle circle-three"></div>
+
+        <div className="forgot-finance-visuals">
+
+          <div className="forgot-finance-chip chip-one">
+            <span className="forgot-visual-icon">📳</span>
+            <div>
+              <strong>Digital Payments</strong>
+              <small>Fast & Secure</small>
+            </div>
+          </div>
+
+          <div className="forgot-finance-chip chip-two">
+            <span className="forgot-visual-icon">🏤</span>
+            <div>
+              <strong>Secure Banking</strong>
+              <small>Protected Transactions</small>
+            </div>
+          </div>
+
+          <div className="forgot-finance-chip chip-three">
+            <span className="forgot-visual-icon">💼</span>
+            <div>
+              <strong>Smart Business</strong>
+              <small>Growth Made Simple</small>
+            </div>
+          </div>
+
+          <div className="forgot-orbit orbit-one"></div>
+          <div className="forgot-orbit orbit-two"></div>
+
+          <div className="forgot-floating-text text-one">
+            INSTANT PAYMENTS
+          </div>
+
+          <div className="forgot-floating-text text-two">
+            BANKING MADE SIMPLE
+          </div>
+
+          <div className="forgot-floating-text text-three">
+            POWERING DIGITAL INDIA
+          </div>
+
+        </div>
+      </div>
+
+      {/* LOGO */}
+     <header className="login-header">
+  <img
+    src="/images/manthanpay-logo.png"
+    alt="ManthanPay"
+    className="login-logo"
+  />
+</header>
+
+      {/* MAIN CONTAINER */}
+      <div className="forgot-card">
+
+        <div className="forgot-heading">
+          <div className="forgot-icon">🔓</div>
+          <h1>Forgot Password?</h1>
+
+          <p>
+            Enter your registered email address.
+            We will send you a password to your email.
+          </p>
+        </div>
+
+        <form onSubmit={handleSendTemporaryPassword}>
+
+          <div className="forgot-field">
+
+            <label>Email Address</label>
+
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setError("");
+              }}
+              placeholder="Enter your registered email"
+              autoComplete="email"
+              required
+            />
+
+            {/* SIMPLE ERROR TEXT */}
+            {error && (
+              <p className="forgot-error-line" role="alert">
+                {error}
+              </p>
+            )}
+
+          </div>
+
+          <button
+            type="submit"
+            className="forgot-submit"
+            disabled={loading}
+          >
+            {loading ? "Sending..." : "Send Password"}
+          </button>
+
+        </form>
+
+        {/* BACK TO LOGIN */}
+        <div className="forgot-footer">
+          <button
+            type="button"
+            onClick={handleBackToLogin}
+          >
+            Back to Login
+          </button>
+        </div>
+
+        {/* COPYRIGHT */}
+        <div className="forgot-bottom">
+          Â© {new Date().getFullYear()} ManthanPay. All rights reserved.
+        </div>
+
+      </div>
+
+      {/* SUCCESS POPUP */}
+      {showSuccessPopup && (
+        <div className="forgot-popup-overlay">
+
+          <div
+            className="forgot-success-popup"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="password-success-title"
+          >
+
+            <div className="forgot-popup-success-icon">
+              âœ“
+            </div>
+
+            <h2 id="password-success-title">
+              Password Sent Successfully!
+            </h2>
+
+            <p>
+              Your password has been sent to your registered
+              email address. Please check your inbox.
+            </p>
+
+            <button
+              type="button"
+              className="forgot-submit"
+              onClick={handleBackToLogin}
+            >
+              Go to Login
+            </button>
+
+          </div>
+
+        </div>
+      )}
+
+    </div>
+  );
+}
+
+
+
+
+
+
+
+==========================================================================================
+FILE: .\src\components\auth\LoginForm.jsx
+==========================================================================================
+
+"use client";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+
+import { loginAdmin, verifyLoginOtp } from "@/services/auth/authService";
+import VerifyLoginOtp from "./VerifyLoginOtp";
+
+export default function Login() {
+  const router = useRouter();
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [loginRole, setLoginRole] = useState("Admin");
+  const [showPassword, setShowPassword] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showOtpVerification, setShowOtpVerification] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState("");
+
+  const handleLogin = async (event) => {
+    event.preventDefault();
+    setError("");
+    setMessage("");
+    setLoading(true);
+
+    try {
+      const response = await loginAdmin({
+        method: "POST",
+        body: {
+          identifier: username.trim(),
+          password,
+          role: loginRole === "Super Admin" ? "SUPER_ADMIN" : "ADMIN",
+        },
+      });
+
+      setPendingEmail(username.trim());
+      setMessage(response?.message || "OTP sent successfully.");
+      setShowOtpVerification(true);
+    } catch (err) {
+      setError(err.message || "Login failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyLoginOtp = async (otp) => {
+    setError("");
+    setMessage("");
+    setLoading(true);
+
+    try {
+      const response = await verifyLoginOtp({
+        method: "POST",
+        body: {
+          identifier: pendingEmail,
+          otp,
+        },
+      });
+
+      if (!response?.accessToken) {
+        throw new Error("Authentication token not received.");
+      }
+
+      localStorage.setItem("manthanpayAuthToken", response.accessToken);
+      localStorage.setItem("manthanpayLoggedInUser", response.fullName || "");
+      localStorage.setItem(
+        "manthanpayLoggedInEmail",
+        response.email || pendingEmail
+      );
+      localStorage.setItem("manthanpayLoggedInRole", response.role || "");
+      localStorage.setItem("manthanpayUserId", String(response.id ?? response.userId ?? ""));
+
+      router.push("/dashboard");
+    } catch (err) {
+      setError(err.message || "OTP verification failed.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBackToLogin = () => {
+    setShowOtpVerification(false);
+    setError("");
+    setMessage("");
+  };
+
+  const handleForgotPassword = (event) => {
+    event.preventDefault();
+    router.push("/forgot-password");
+  };
+
+  return (
+    <main className="login-page">
+      {/* Background */}
+      <div className="login-bg-decoration">
+        <div className="bg-circle bg-circle-one"></div>
+        <div className="bg-circle bg-circle-two"></div>
+        <div className="bg-circle bg-circle-three"></div>
+
+        <div className="floating-text floating-text-one">SECURE PAYMENTS</div>
+        <div className="floating-text floating-text-two">SMART BANKING</div>
+        <div className="floating-text floating-text-three">INSTANT TRANSFERS</div>
+        <div className="floating-text floating-text-four">DIGITAL FINANCE</div>
+        <div className="floating-text floating-text-five">TRUSTED TRANSACTIONS</div>
+
+        <div className="background-watermark">MANTHANPAY</div>
+
+        {/* India Map - Right Side */}
+        <div className="digital-india">
+          <div className="india-map-wrap">
+            <img
+              src="/images/india-map.avif"
+              alt="Map of India"
+              className="india-map"
+            />
+
+            <div className="india-map-scan"></div>
+
+            <div className="india-map-points">
+              <span className="point point-one"></span>
+              <span className="point point-two"></span>
+              <span className="point point-three"></span>
+              <span className="point point-four"></span>
+              <span className="point point-five"></span>
+              <span className="point point-six"></span>
+            </div>
+          </div>
+
+          <div className="india-label">DIGITAL INDIA</div>
+          <div className="india-sub-label">
+            CONNECTING INDIA THROUGH DIGITAL PAYMENTS
+          </div>
+        </div>
+
+        {/* Background Finance Visuals */}
+        <div className="finance-visuals">
+          <div className="finance-orbit orbit-one"></div>
+          <div className="finance-orbit orbit-two"></div>
+          <div className="network-lines"></div>
+
+          <div className="extra-floating-text extra-text-one">
+            INSTANT PAYMENTS
+          </div>
+          <div className="extra-floating-text extra-text-two">
+            BANKING MADE SIMPLE
+          </div>
+          <div className="extra-floating-text extra-text-three">
+            POWERING DIGITAL INDIA
+          </div>
+        </div>
+      </div>
+
+      {/* Logo */}
+      <header className="login-header">
+        <img
+          src="/images/manthanpay-logo.png"
+          alt="ManthanPay"
+          className="login-logo"
+        />
+      </header>
+
+      {/* Left Side Slogan */}
+      <div className="login-background-content">
+        <span>THE FUTURE OF DIGITAL PAYMENTS</span>
+
+        <h1>
+          Smarter Payments
+          <br />
+          <strong>Stronger Business</strong>
+        </h1>
+
+        <p>
+          One powerful platform to manage your payments,
+          transactions and business operations.
+        </p>
+
+        <div className="slogan-line"></div>
+      </div>
+
+      {/* Center Login Area */}
+      <section className="login-center">
+       
+
+        {showOtpVerification ? (
+          <div className="login-card otp-card">
+            <VerifyLoginOtp
+              email={pendingEmail}
+              onVerify={handleVerifyLoginOtp}
+              onBack={handleBackToLogin}
+              isLoading={loading}
+              error={error}
+              message={message}
+            />
+          </div>
+        ) : (
+          <div className="login-card">
+            <div className="login-heading">
+              <h2>Sign In</h2>
+              <p>Access your ManthanPay account</p>
+            </div>
+
+            {message && (
+              <div className="login-message success-message">
+                {message}
+              </div>
+            )}
+
+            <form onSubmit={handleLogin} className="login-form">
+              <div className="form-group">
+                <label htmlFor="loginRole">User type</label>
+                <div className="input-wrapper">
+                  <select
+                    id="loginRole"
+                    value={loginRole}
+                    onChange={(event) => setLoginRole(event.target.value)}
+                    required
+                  >
+                    <option value="Admin">Admin</option>
+                    <option value="Super Admin">Super Admin</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="username">Email Address / Contact</label>
+                <div className="input-wrapper">
+                  <input
+                    type="text"
+                    id="username"
+                    placeholder="Enter email or contact"
+                    value={username}
+                    onChange={(event) => setUsername(event.target.value)}
+                    autoComplete="username"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="form-group password-group">
+                <label htmlFor="password">Password</label>
+
+                <div className="input-wrapper password-input-wrapper">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    id="password"
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    autoComplete="current-password"
+                    required
+                  />
+
+                  <button
+                    type="button"
+                    className="password-eye"
+                    onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    title={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? (
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M3 3l18 18" />
+                        <path d="M10.6 10.6a2 2 0 002.8 2.8" />
+                        <path d="M9.9 5.2A11 11 0 0112 5c5 0 8.5 4.5 9.5 7-.4 1-1.2 2.1-2.3 3.1" />
+                        <path d="M6.2 6.2C3.8 7.7 2.7 10 2.5 12c1 2.5 4.5 7 9.5 7 1.3 0 2.5-.3 3.6-.8" />
+                      </svg>
+                    ) : (
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M2.5 12s3.5-7 9.5-7 9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+
+                <div className="forgot-password-row">
+                  {error && (
+                    <p className="login-inline-error" role="alert">
+                      {error}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <button type="submit" className="login-button" disabled={loading}>
+                {loading ? "Please wait..." : "Sign In"}
+                {!loading }
+              </button>
+
+              <div className="forgot-password-row">
+                <button
+                  type="button"
+                  className="forgot-password"
+                  onClick={handleForgotPassword}
+                >
+                  Forgot Password? <span>Click here</span> to Reset.
+                </button>
+              </div>
+            </form>
+
+            <div className="login-bottom">
+              Secure access powered by ManthanPay
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* Footer - Preserved */}
+      <footer className="login-footer">
+        <div className="footer-item">
+          {/* <span className="footer-icon">we can take logo just like symbol</span> */}
+          <span>Call Us:</span>
+          <a href="tel:+918920980000">+91 8920980000</a>
+        </div>
+
+        <span className="footer-divider"></span>
+
+        <div className="footer-item">
+          {/* <span className="footer-icon">we can take logo just like symbol @</span> */}
+          <span>Write Us:</span>
+          <a href="mailto:support@manthanpay.com">
+            support@manthanpay.com
+          </a>
+        </div>
+
+        <span className="footer-divider"></span>
+
+        <div className="footer-item">
+          {new Date().getFullYear()} ManthanPay. All rights reserved.
+        </div>
+      </footer>
+    </main>
+  );
+}
+
+
+
+
+
+
+
+==========================================================================================
+FILE: .\src\components\auth\VerifyLoginOtp.jsx
+==========================================================================================
+"use client";
+
+import { useState } from "react";
+
+export default function VerifyLoginOtp({
+  email,
+  onVerify,
+  onBack,
+  onResend,
+  isLoading = false,
+  error = "",
+  message = "",
+}) {
+  const [otp, setOtp] = useState("");
+
+  function handleSubmit(event) {
+    event.preventDefault();
+
+    if (otp.length !== 6 || isLoading) return;
+
+    onVerify(otp.trim());
+  }
+
+  return (
+    <div className="otp-verification-content">
+      <h2>Verify Login OTP</h2>
+
+      {email && <p>OTP sent to {email}</p>}
+
+      {error && (
+        <p role="alert" className="error-message">
+          {error}
+        </p>
+      )}
+
+      {message && (
+        <p role="status" className="success-message">
+          {message}
+        </p>
+      )}
+
+      <form onSubmit={handleSubmit}>
+        <input
+          id="login-otp"
+          type="text"
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          placeholder="Enter 6-digit OTP"
+          value={otp}
+          onChange={(event) =>
+            setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))
+          }
+          maxLength={6}
+          required
+          disabled={isLoading}
+        />
+
+        <button
+          type="submit"
+          className="login-button"
+          disabled={isLoading || otp.length !== 6}
+        >
+          {isLoading ? "Verifying..." : "Verify OTP"}
+        </button>
+      </form>
+
+      {onResend && (
+        <button
+          type="button"
+          className="otp-resend-button"
+          onClick={onResend}
+          disabled={isLoading}
+        >
+          Resend OTP
+        </button>
+      )}
+
+      <button
+        type="button"
+        className="otp-back-button"
+        onClick={onBack}
+        disabled={isLoading}
+      >
+        Back to Login
+      </button>
+    </div>
+  );
+}
+
+
+==========================================================================================
+FILE: .\src\components\Sidebar.jsx
+==========================================================================================
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+
+const menuItems = [
+  { label: "Dashboard", icon: "â–¦", href: "/dashboard" },
+  { label: "Transactions", icon: "â‡„", href: "#" },
+  { label: "Users", icon: "â™™", href: "#" },
+  { label: "Agents", icon: "â™§", href: "#" },
+  { label: "Settlements", icon: "â‚¹", href: "#" },
+  { label: "Services", icon: "â–£", href: "#" },
+  // { label: "Reports", icon: "â–¤", href: "#" },
+];
+
+export default function Sidebar() {
+  const pathname = usePathname();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const currentPath = mounted ? pathname : "";
+
+  const isEsignActive = currentPath.startsWith("/dashboard/aadhaar-esign");
+
+  return (
+    <aside className="fixed bottom-0 left-0 top-16 z-[70] hidden w-64 flex-col overflow-visible bg-[#102b50] text-white md:flex">
+      <div className="px-5 py-6">
+        <p className="mb-4 px-2 text-[11px] font-bold uppercase tracking-[0.16em] text-blue-300/80">
+          Main Menu
+        </p>
+
+        <nav className="space-y-2">
+          {menuItems.map((item) => {
+            const isActive =
+              currentPath === item.href ||
+              (item.href !== "/dashboard" &&
+                item.href !== "#" &&
+                currentPath.startsWith(`${item.href}/`));
+
+            return (
+              <Link
+                key={item.label}
+                href={item.href}
+                className={`group flex items-center gap-3 rounded-xl px-4 py-3 text-sm transition-all duration-200 ${
+                  isActive
+                    ? "bg-blue-600 font-semibold text-white shadow-lg"
+                    : "text-blue-100 hover:bg-white/10 hover:pl-5 hover:text-white"
+                }`}
+              >
+                <span className="flex w-5 items-center justify-center text-lg">
+                  {item.icon}
+                </span>
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+
+          <div className="group/feature relative">
+            <button
+              type="button"
+              aria-haspopup="true"
+              className="flex w-full items-center justify-between px-4 py-3 text-left text-sm text-blue-100 transition-colors hover:text-white"
+            >
+              <span>Feature</span>
+              <span className="text-base">â€º</span>
+            </button>
+
+            <div
+              className="
+                invisible absolute left-full bottom-0 z-[100]
+                w-56 rounded-md bg-white p-2 text-slate-800
+                opacity-0 shadow-xl translate-x-1
+                transition-all duration-150
+                group-hover/feature:visible
+                group-hover/feature:translate-x-0
+                group-hover/feature:opacity-100
+                group-focus-within/feature:visible
+                group-focus-within/feature:translate-x-0
+                group-focus-within/feature:opacity-100
+              "
+            >
+              <Link
+                href="/dashboard/aadhaar-esign"
+                className={`block px-3 py-2 text-sm transition-colors hover:bg-slate-100 ${
+                  isEsignActive ? "text-blue-700" : "text-slate-700"
+                }`}
+              >
+                Document eSign
+              </Link>
+
+              <Link
+                href="/dashboard/kyc"
+                className={`block px-3 py-2 text-sm transition-colors hover:bg-slate-100 ${
+                  currentPath.startsWith("/dashboard/kyc")
+                    ? "text-blue-700"
+                    : "text-slate-700"
+                }`}
+              >
+                KYC
+              </Link>
+            </div>
+          </div>
+        </nav>
+      </div>
+
+      <div className="mt-auto border-t border-white/10 p-5 text-xs text-blue-200">
+        ManthanPay Admin Portal
+      </div>
+    </aside>
+  );
+}
+
+
+==========================================================================================
+FILE: .\src\components\StatCard.jsx
+==========================================================================================
+"use client";
+
+const icons = {
+  users: "👥",
+  activity: "↔",
+  "user-check": "🤝",
+  clock: "◷",
+};
+
+export default function StatCard({ title, value, change, icon }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium text-slate-500">{title}</p>
+        <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-xl">
+          {icons[icon] || "📊"}
+        </span>
+      </div>
+      <h2 className="mt-4 text-2xl font-bold text-slate-800">{value}</h2>
+      <p className="mt-2 text-xs text-slate-500">{change}</p>
+    </div>
+  );
+}
+
+
+==========================================================================================
+FILE: .\src\components\Topbar.jsx
+==========================================================================================
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { apiRequest } from "@/services/api/apiClient";
+import ChangePasswordModal from "@/features/profile/components/ChangePasswordModal";
+
+export default function Topbar() {
+  const router = useRouter();
+
+  const [user, setUser] = useState({
+    name: "Administrator",
+    id: "",
+    role: "",
+  });
+
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
+
+  useEffect(() => {
+    setUser({
+      name: localStorage.getItem("manthanpayLoggedInUser") || "Administrator",
+      id: localStorage.getItem("manthanpayUserId") || "",
+      role: localStorage.getItem("manthanpayLoggedInRole") || "",
+    });
+  }, []);
+
+  function openProfile() {
+    setIsProfileOpen(false);
+    router.push("/profile");
+  }
+
+  function openAccountSettings() {
+    setIsProfileOpen(false);
+    router.push("/account-settings");
+  }
+  function openChangePassword() {
+    setIsProfileOpen(false);
+    setIsChangePasswordOpen(true);
+  }
+
+  async function handleLogout() {
+    if (loggingOut) return;
+
+    setLoggingOut(true);
+
+    try {
+      const csrfResponse = await apiRequest("/api/auth/csrf", {
+        method: "GET",
+      });
+
+      if (!csrfResponse?.token) {
+        throw new Error("CSRF token was not received.");
+      }
+
+      await apiRequest("/api/auth/logout", {
+        method: "POST",
+        headers: {
+          "X-XSRF-TOKEN": csrfResponse.token,
+        },
+      });
+
+      localStorage.removeItem("manthanpayAuthToken");
+      localStorage.removeItem("manthanpayLoggedInUser");
+      localStorage.removeItem("manthanpayLoggedInEmail");
+      localStorage.removeItem("manthanpayLoggedInRole");
+      localStorage.removeItem("manthanpayUserId");
+
+      router.replace("/login");
+    } catch (error) {
+      console.error("Backend logout failed:", error);
+
+      window.alert(
+        "Backend logout confirm nahi hua. Login data clear nahi kiya gaya. Backend connection check karke dobara try karein."
+      );
+    } finally {
+      setLoggingOut(false);
+    }
+  }
+
+  const formattedRole =
+    user.role === "SUPER_ADMIN"
+      ? "Super Admin"
+      : user.role === "ADMIN"
+        ? "Admin"
+        : user.role || "Account";
+
+  return (
+    <header className="fixed inset-x-0 top-0 z-40 flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 shadow-sm sm:px-6 lg:px-8">
+      <div className="flex min-w-0 items-center">
+        <img
+          src="/images/manthanpay-logo.png"
+          alt="ManthanPay"
+          className="h-11 w-auto max-w-[190px] object-contain"
+        />
+      </div>
+
+      <div className="flex items-center gap-3 sm:gap-5">
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setIsProfileOpen(!isProfileOpen)}
+            aria-expanded={isProfileOpen}
+            className="flex items-center gap-2 rounded-lg px-2 py-2 transition hover:bg-slate-50 sm:gap-3"
+          >
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-700">
+              <svg
+                viewBox="0 0 24 24"
+                className="h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                aria-hidden="true"
+              >
+                <circle cx="12" cy="8" r="3.5" />
+                <path d="M5 20c.7-3.5 3.1-5.3 7-5.3s6.3 1.8 7 5.3" />
+              </svg>
+            </div>
+
+            <div className="hidden min-w-0 text-left sm:block">
+              <p className="max-w-[180px] truncate text-sm font-semibold text-slate-800">
+                {user.name}
+              </p>
+              <p className="text-xs text-slate-500">{formattedRole}</p>
+            </div>
+
+            <svg
+              viewBox="0 0 24 24"
+              className={`h-4 w-4 text-slate-500 transition-transform ${
+                isProfileOpen ? "rotate-180" : ""
+              }`}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              aria-hidden="true"
+            >
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </button>
+
+          {isProfileOpen && (
+            <div className="absolute right-0 top-full z-50 mt-3 w-60 overflow-hidden rounded-xl border border-slate-200 bg-white py-2 shadow-xl">
+              <div className="border-b border-slate-100 px-4 py-3">
+                <p className="truncate text-sm font-semibold text-slate-800">
+                  {user.name}
+                </p>
+                <p className="text-xs text-slate-500">{formattedRole}</p>
+              </div>
+
+              <div className="space-y-1 px-2 py-2">
+                <button
+                  type="button"
+                  onClick={openProfile}
+                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-slate-700 transition hover:bg-blue-50"
+                >
+                  <span>ðŸ‘¤</span>
+                  My Profile
+                </button>
+                <button
+                  type="button"
+                  onClick={openChangePassword}
+                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-slate-700 transition hover:bg-blue-50"
+                >
+                  <span>ðŸ”’</span>
+                  Change Password
+                </button>
+
+                <button
+                  type="button"
+                  onClick={openAccountSettings}
+                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-slate-700 transition hover:bg-blue-50"
+                >
+                  <span>âš™ï¸</span>
+                  Account Settings
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setIsLogoutConfirmOpen(true)}
+          disabled={loggingOut}
+          className="inline-flex items-center gap-2 rounded-lg border border-red-100 px-3 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 sm:px-4"
+        >
+          <span>{loggingOut ? "Logging out..." : "Logout"}</span>
+        </button>
+      </div>
+      {isChangePasswordOpen && (
+        <ChangePasswordModal
+          onClose={() => setIsChangePasswordOpen(false)}
+        />
+      )}
+
+      {isLogoutConfirmOpen && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 p-4"
+          role="presentation"
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="logout-dialog-title"
+            aria-describedby="logout-dialog-description"
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
+          >
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-600">
+              <span className="text-2xl" aria-hidden="true">!</span>
+            </div>
+
+            <h2
+              id="logout-dialog-title"
+              className="text-lg font-semibold text-slate-900"
+            >
+              Confirm Logout
+            </h2>
+
+            <p
+              id="logout-dialog-description"
+              className="mt-2 text-sm leading-6 text-slate-600"
+            >
+              Are you sure you want to logout from your ManthanPay account?
+            </p>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setIsLogoutConfirmOpen(false)}
+                disabled={loggingOut}
+                className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={handleLogout}
+                disabled={loggingOut}
+                className="rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {loggingOut ? "Logg

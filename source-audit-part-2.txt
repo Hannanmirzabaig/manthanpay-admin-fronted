@@ -1,0 +1,1312 @@
+﻿ing out..." : "Confirm Logout"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </header>
+  );
+}
+
+==========================================================================================
+FILE: .\src\data\dashboardData.js
+==========================================================================================
+export const dashboardStats = [
+  { title: "Total Users", value: "12,450", change: "+8.5%", icon: "users" },
+  { title: "Total Transactions", value: "8,920", change: "+5.2%", icon: "activity" },
+  { title: "Active Agents", value: "340", change: "+12 new", icon: "user-check" },
+  { title: "Pending Settlements", value: "24", change: "Requires attention", icon: "clock" },
+];
+
+export const recentTransactions = [
+  { id: "TXN-1001", name: "Rahul Sharma", type: "Money Transfer", amount: "₹12,500", status: "Success" },
+  { id: "TXN-1002", name: "Amit Verma", type: "Mobile Recharge", amount: "₹599", status: "Pending" },
+  { id: "TXN-1003", name: "Priya Singh", type: "Bill Payment", amount: "₹2,400", status: "Success" },
+  { id: "TXN-1004", name: "Neha Gupta", type: "Money Transfer", amount: "₹8,000", status: "Failed" },
+  { id: "TXN-1005", name: "Vikas Kumar", type: "DTH Recharge", amount: "₹350", status: "Success" },
+];
+
+
+==========================================================================================
+FILE: .\src\features\aadhaar-esign\components\AadhaarESignUpload.jsx
+==========================================================================================
+"use client";
+
+import { useRef, useState } from "react";
+import useAadhaarESign from "../hooks/useAadhaarESign";
+import { formatFileSize } from "../utils/pdfValidator";
+
+export default function AadhaarESignUpload() {
+  const fileInputRef = useRef(null);
+  const [dragging, setDragging] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+
+  const {
+    selectedFile,
+    uploading,
+    uploadResponse,
+    referenceId,
+    error,
+    selectFile,
+    uploadFile,
+    reset,
+  } = useAadhaarESign();
+
+  function handleFile(file) {
+    selectFile(file);
+  }
+
+  function handleDrop(event) {
+    event.preventDefault();
+    setDragging(false);
+
+    const file = event.dataTransfer.files?.[0];
+
+    if (file) {
+      handleFile(file);
+    }
+  }
+
+  async function handleUpload() {
+    try {
+      const response = await uploadFile();
+
+      if (response?.success === true) {
+        selectFile(null);
+        setShowSuccessModal(true);
+      }
+    } catch {
+      // Error is displayed by the hook.
+    }
+  }
+
+  function handleReset() {
+    reset();
+    setShowSuccessModal(false);
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }
+
+  return (
+    <div className="mx-auto w-full max-w-5xl space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-slate-800">
+          Aadhaar eSign
+        </h1>
+        <p className="mt-1 text-sm text-slate-500">
+          Upload your PDF document for Aadhaar eSign processing.
+        </p>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="mb-5">
+          <h2 className="text-lg font-semibold text-slate-800">
+            Upload PDF Document
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Only PDF files up to 5 MB are allowed.
+          </p>
+        </div>
+
+        <div
+          onDragOver={(event) => {
+            event.preventDefault();
+            setDragging(true);
+          }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+          className={`cursor-pointer rounded-xl border-2 border-dashed p-10 text-center transition ${
+            dragging
+              ? "border-blue-500 bg-blue-50"
+              : "border-slate-300 bg-slate-50 hover:border-blue-400 hover:bg-blue-50/50"
+          }`}
+        >
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-blue-100 text-2xl text-blue-700">
+            â†‘
+          </div>
+
+          <p className="mt-4 font-semibold text-slate-700">
+            Drag and drop your PDF here
+          </p>
+
+          <p className="mt-1 text-sm text-slate-500">
+            or click to browse files
+          </p>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,application/pdf"
+            className="hidden"
+            onChange={(event) => {
+              handleFile(event.target.files?.[0] || null);
+              event.target.value = "";
+            }}
+          />
+        </div>
+
+        {selectedFile && (
+          <div className="mt-5 flex flex-col justify-between gap-3 rounded-xl border border-slate-200 p-4 sm:flex-row sm:items-center">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-red-50 text-sm font-bold text-red-600">
+                PDF
+              </div>
+
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-slate-700">
+                  {selectedFile.name}
+                </p>
+                <p className="text-xs text-slate-500">
+                  {formatFileSize(selectedFile.size)}
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              disabled={uploading}
+              onClick={() => selectFile(null)}
+              className="text-sm font-medium text-red-600 hover:text-red-700 disabled:opacity-50"
+            >
+              Remove file
+            </button>
+          </div>
+        )}
+
+        {error && (
+          <div
+            role="alert"
+            className="mt-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+          >
+            {error}
+          </div>
+        )}
+
+        {uploadResponse && (
+          <div className="mt-5 rounded-lg border border-green-200 bg-green-50 p-4">
+            <p className="font-semibold text-green-800">
+              Upload request completed.
+            </p>
+            {referenceId && (
+              <p className="mt-2 break-all text-sm text-green-700">
+                Reference ID: {referenceId}
+              </p>
+            )}
+          </div>
+        )}
+
+        <div className="mt-6 flex flex-wrap gap-3">
+          <button
+            type="button"
+            disabled={!selectedFile || uploading}
+            onClick={handleUpload}
+            className="rounded-lg bg-blue-700 px-6 py-3 text-sm font-semibold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {uploading ? "Uploading..." : "Upload PDF"}
+          </button>
+
+          <button
+            type="button"
+            disabled={uploading}
+            onClick={handleReset}
+            className="rounded-lg border border-slate-300 px-6 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          >
+            Reset
+          </button>
+        </div>
+      </div>
+
+      <p className="text-xs leading-5 text-slate-500">
+        Security note: The PDF is sent to the ManthanPay backend and saved
+        in server-side local storage for temporary testing.
+      </p>
+
+      {showSuccessModal && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="upload-success-title"
+        >
+          <div className="w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-2xl">
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-green-100">
+              <svg
+                className="h-10 w-10 text-green-600"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="m5 12 4 4L19 6" />
+              </svg>
+            </div>
+
+            <h2
+              id="upload-success-title"
+              className="mt-5 text-2xl font-bold text-slate-800"
+            >
+              PDF Successfully Uploaded!
+            </h2>
+
+            <p className="mt-2 text-sm leading-6 text-slate-500">
+              Your PDF document has been uploaded successfully.
+            </p>
+
+            <button
+              type="button"
+              autoFocus
+              onClick={() => setShowSuccessModal(false)}
+              className="mt-7 w-full rounded-xl bg-green-600 px-6 py-3 font-semibold text-white shadow-sm transition hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-green-200"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+==========================================================================================
+FILE: .\src\features\aadhaar-esign\hooks\useAadhaarESign.js
+==========================================================================================
+"use client";
+
+import { useState } from "react";
+import {
+  uploadAadhaarESignPdf,
+  getAadhaarESignStatus,
+} from "../services/aadhaarESignService";
+import { validatePdf } from "../utils/pdfValidator";
+
+export default function useAadhaarESign() {
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadResponse, setUploadResponse] = useState(null);
+  const [referenceId, setReferenceId] = useState("");
+  const [status, setStatus] = useState(null);
+  const [checkingStatus, setCheckingStatus] = useState(false);
+  const [error, setError] = useState("");
+
+  function selectFile(file) {
+    setError("");
+    setUploadResponse(null);
+    setStatus(null);
+
+    if (!file) {
+      setSelectedFile(null);
+      return;
+    }
+
+    setSelectedFile(file);
+  }
+
+  async function uploadFile() {
+    setError("");
+    setUploadResponse(null);
+    setStatus(null);
+
+    try {
+      await validatePdf(selectedFile);
+
+      setUploading(true);
+
+      const response = await uploadAadhaarESignPdf(selectedFile);
+
+      setUploadResponse(response);
+
+      const returnedReferenceId =
+        response?.referenceId ||
+        response?.data?.referenceId ||
+        "";
+
+      if (returnedReferenceId) {
+        setReferenceId(String(returnedReferenceId));
+      }
+
+      return response;
+    } catch (err) {
+      setError(err.message || "PDF upload failed.");
+      throw err;
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function checkStatus(value = referenceId) {
+    setError("");
+    setStatus(null);
+
+    if (!value?.trim()) {
+      setError("Please enter a valid Reference ID.");
+      return;
+    }
+
+    try {
+      setCheckingStatus(true);
+
+      const response = await getAadhaarESignStatus(value);
+
+      setStatus(response);
+
+      return response;
+    } catch (err) {
+      setError(err.message || "Unable to check eSign status.");
+      throw err;
+    } finally {
+      setCheckingStatus(false);
+    }
+  }
+
+  function reset() {
+    setSelectedFile(null);
+    setUploadResponse(null);
+    setReferenceId("");
+    setStatus(null);
+    setError("");
+  }
+
+  return {
+    selectedFile,
+    uploading,
+    uploadResponse,
+    referenceId,
+    status,
+    checkingStatus,
+    error,
+    setReferenceId,
+    selectFile,
+    uploadFile,
+    checkStatus,
+    reset,
+  };
+}
+
+
+==========================================================================================
+FILE: .\src\features\aadhaar-esign\services\aadhaarESignService.js
+==========================================================================================
+import { apiRequest } from "@/services/api/apiClient";
+
+export async function uploadAadhaarESignPdf(file) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  return apiRequest("/api/kyc/aadhaar-esign/upload", {
+    method: "POST",
+    body: formData,
+  });
+}
+
+export async function getAadhaarESignStatus(referenceId) {
+  if (!referenceId || !referenceId.trim()) {
+    throw new Error("Reference ID is required.");
+  }
+
+  return apiRequest(
+    `/api/kyc/aadhaar-esign/status?referenceId=${encodeURIComponent(referenceId.trim())}`,
+    {
+      method: "GET",
+    }
+  );
+}
+
+
+==========================================================================================
+FILE: .\src\features\aadhaar-esign\utils\pdfValidator.js
+==========================================================================================
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+
+export async function validatePdf(file) {
+  if (!file) {
+    throw new Error("Please select a PDF file.");
+  }
+
+  if (!file.name.toLowerCase().endsWith(".pdf")) {
+    throw new Error("Only PDF files are allowed.");
+  }
+
+  if (file.size > MAX_FILE_SIZE) {
+    throw new Error("PDF size must not exceed 10 MB.");
+  }
+
+  if (file.size === 0) {
+    throw new Error("The selected PDF is empty.");
+  }
+
+  const header = await file.slice(0, 5).arrayBuffer();
+  const signature = new TextDecoder().decode(header);
+
+  if (signature !== "%PDF-") {
+    throw new Error("Invalid PDF file. Please select a valid PDF.");
+  }
+
+  return true;
+}
+
+export function formatFileSize(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
+
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+
+==========================================================================================
+FILE: .\src\features\account-settings\components\DisplaySettings.jsx
+==========================================================================================
+import SettingsSection from "./SettingsSection";
+
+export default function DisplaySettings({ settings, updateSetting }) {
+  return (
+    <SettingsSection
+      title="Display Preferences"
+      description="Customize how the admin panel appears on your screen."
+    >
+      <div>
+        <label className="mb-2 block text-sm font-medium text-slate-700">
+          Theme
+        </label>
+        <select
+          value={settings.theme}
+          onChange={(e) => updateSetting("theme", e.target.value)}
+          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
+        >
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+          <option value="system">System Default</option>
+        </select>
+      </div>
+
+      <label className="flex cursor-pointer items-center justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium text-slate-800">Compact Layout</p>
+          <p className="mt-1 text-sm text-slate-500">Use a more compact interface.</p>
+        </div>
+        <input
+          type="checkbox"
+          checked={settings.compactLayout}
+          onChange={(e) => updateSetting("compactLayout", e.target.checked)}
+          className="h-4 w-4 accent-blue-600"
+        />
+      </label>
+    </SettingsSection>
+  );
+}
+
+
+==========================================================================================
+FILE: .\src\features\account-settings\components\NotificationSettings.jsx
+==========================================================================================
+import SettingsSection from "./SettingsSection";
+
+export default function NotificationSettings({ settings, updateSetting }) {
+  return (
+    <SettingsSection
+      title="Notification Preferences"
+      description="Manage how you receive account and system notifications."
+    >
+      {[
+        ["emailNotifications", "Email Notifications", "Receive important updates through email."],
+        ["securityNotifications", "Security Alerts", "Get notified about important security events."],
+        ["systemNotifications", "System Notifications", "Receive platform announcements and updates."]
+      ].map(([key, title, description]) => (
+        <label key={key} className="flex cursor-pointer items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium text-slate-800">{title}</p>
+            <p className="mt-1 text-sm text-slate-500">{description}</p>
+          </div>
+          <input
+            type="checkbox"
+            checked={settings[key]}
+            onChange={(e) => updateSetting(key, e.target.checked)}
+            className="h-4 w-4 accent-blue-600"
+          />
+        </label>
+      ))}
+    </SettingsSection>
+  );
+}
+
+
+==========================================================================================
+FILE: .\src\features\account-settings\components\RegionalSettings.jsx
+==========================================================================================
+import SettingsSection from "./SettingsSection";
+
+export default function RegionalSettings({ settings, updateSetting }) {
+  return (
+    <SettingsSection
+      title="Regional Settings"
+      description="Choose your preferred language, timezone and currency display."
+    >
+      <div>
+        <label className="mb-2 block text-sm font-medium text-slate-700">
+          Language
+        </label>
+        <select
+          value={settings.language}
+          onChange={(e) => updateSetting("language", e.target.value)}
+          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
+        >
+          <option value="en">English</option>
+          <option value="hi">Hindi</option>
+        </select>
+      </div>
+
+      <div>
+        <label className="mb-2 block text-sm font-medium text-slate-700">
+          Timezone
+        </label>
+        <select
+          value={settings.timezone}
+          onChange={(e) => updateSetting("timezone", e.target.value)}
+          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
+        >
+          <option value="Asia/Kolkata">India Standard Time (IST)</option>
+          <option value="UTC">Coordinated Universal Time (UTC)</option>
+        </select>
+      </div>
+
+      <div>
+        <label className="mb-2 block text-sm font-medium text-slate-700">
+          Currency Display
+        </label>
+        <select
+          value={settings.currency}
+          onChange={(e) => updateSetting("currency", e.target.value)}
+          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
+        >
+          <option value="INR">Indian Rupee (INR)</option>
+          <option value="USD">US Dollar (USD)</option>
+        </select>
+      </div>
+    </SettingsSection>
+  );
+}
+
+
+==========================================================================================
+FILE: .\src\features\account-settings\components\SecuritySettings.jsx
+==========================================================================================
+import SettingsSection from "./SettingsSection";
+
+export default function SecuritySettings({ settings, updateSetting }) {
+  return (
+    <SettingsSection
+      title="Security Preferences"
+      description="Manage your personal security notifications and preferences."
+    >
+      <label className="flex cursor-pointer items-center justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium text-slate-800">Login Alerts</p>
+          <p className="mt-1 text-sm text-slate-500">
+            Receive an alert when your account is accessed.
+          </p>
+        </div>
+
+        <input
+          type="checkbox"
+          checked={settings.loginAlerts}
+          onChange={(e) => updateSetting("loginAlerts", e.target.checked)}
+          className="h-4 w-4 accent-blue-600"
+        />
+      </label>
+
+      <div className="rounded-lg border border-blue-100 bg-blue-50 p-4">
+        <p className="text-sm font-medium text-blue-900">
+          Two-Factor Authentication
+        </p>
+        <p className="mt-1 text-sm text-blue-800">
+          Your organization's 2FA policy is managed by the Super Admin.
+          Its actual status will be loaded from the backend.
+        </p>
+      </div>
+      {/* Change Password is managed centrally through the Topbar.
+      <button
+        type="button"
+        disabled
+        className="cursor-not-allowed rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-400"
+      >
+        Change Password - Coming Soon
+      </button>
+      */}
+    </SettingsSection>
+  );
+}
+
+==========================================================================================
+FILE: .\src\features\account-settings\components\SessionManagement.jsx
+==========================================================================================
+import SettingsSection from "./SettingsSection";
+
+export default function SessionManagement() {
+  return (
+    <SettingsSection
+      title="Session Management"
+      description="Review and manage your account sessions."
+    >
+      <div className="rounded-lg border border-slate-200 p-4">
+        <p className="text-sm font-medium text-slate-800">
+          Current Session
+        </p>
+        <p className="mt-1 text-xs text-slate-500">
+          This device - Session details pending backend integration
+        </p>
+
+        <span className="mt-4 inline-flex rounded-full bg-green-50 px-3 py-1 text-xs font-medium text-green-700">
+          Current session
+        </span>
+      </div>
+
+      <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+        <p className="text-sm text-amber-900">
+          Active session listing and remote logout will be enabled after secure
+          backend session-management APIs are implemented.
+        </p>
+      </div>
+
+      <button
+        type="button"
+        disabled
+        className="cursor-not-allowed rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-400"
+      >
+        Sign Out Other Sessions - Coming Soon
+      </button>
+    </SettingsSection>
+  );
+}
+
+==========================================================================================
+FILE: .\src\features\account-settings\components\SettingsSection.jsx
+==========================================================================================
+export default function SettingsSection({ title, description, children }) {
+  return (
+    <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="mb-5">
+        <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
+        <p className="mt-1 text-sm text-slate-500">{description}</p>
+      </div>
+      <div className="space-y-5">{children}</div>
+    </section>
+  );
+}
+
+
+==========================================================================================
+FILE: .\src\features\account-settings\hooks\useAccountSettings.js
+==========================================================================================
+"use client";
+
+import { useState } from "react";
+
+const initialSettings = {
+  emailNotifications: true,
+  securityNotifications: true,
+  systemNotifications: false,
+  theme: "light",
+  compactLayout: false,
+  loginAlerts: true,
+  language: "en",
+  timezone: "Asia/Kolkata",
+  currency: "INR"
+};
+
+export default function useAccountSettings() {
+  const [settings, setSettings] = useState(initialSettings);
+
+  const updateSetting = (key, value) => {
+    setSettings((previous) => ({
+      ...previous,
+      [key]: value
+    }));
+  };
+
+  const resetSettings = () => {
+    setSettings(initialSettings);
+  };
+
+  return {
+    settings,
+    updateSetting,
+    resetSettings
+  };
+}
+
+
+==========================================================================================
+FILE: .\src\features\account-settings\index.js
+==========================================================================================
+"use client";
+
+import useAccountSettings from "./hooks/useAccountSettings";
+import NotificationSettings from "./components/NotificationSettings";
+import DisplaySettings from "./components/DisplaySettings";
+import SecuritySettings from "./components/SecuritySettings";
+import RegionalSettings from "./components/RegionalSettings";
+import SessionManagement from "./components/SessionManagement";
+
+export default function AccountSettingsFeature() {
+  const { settings, updateSetting, resetSettings } = useAccountSettings();
+
+  return (
+    <div className="mx-auto max-w-5xl space-y-6 pb-8">
+      <div>
+        <h1 className="text-2xl font-bold text-slate-900">Account Settings</h1>
+        <p className="mt-1 text-sm text-slate-500">
+          Manage your personal preferences and account settings.
+        </p>
+      </div>
+
+      <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+        <p className="text-sm text-amber-900">
+          Settings are currently a frontend preview. Changes are temporary and
+          reset when the page is refreshed. Secure backend persistence is not
+          connected yet.
+        </p>
+      </div>
+
+      <NotificationSettings settings={settings} updateSetting={updateSetting} />
+      <DisplaySettings settings={settings} updateSetting={updateSetting} />
+      <SecuritySettings settings={settings} updateSetting={updateSetting} />
+      <RegionalSettings settings={settings} updateSetting={updateSetting} />
+      <SessionManagement />
+
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={resetSettings}
+          className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+        >
+          Reset Preferences
+        </button>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+FILE: .\src\features\kyc\components\KycDetails.jsx
+==========================================================================================
+// "use client";
+
+// import Link from "next/link";
+// import { useParams } from "next/navigation";
+// import { useKycRecord } from "../hooks/useKyc";
+// import SelfieImageViewer from "./SelfieImageViewer";
+// import {
+//   displayValue,
+//   formatDate,
+//   maskAadhaar,
+//   maskBankAccount,
+//   maskMobile,
+//   maskPan,
+// } from "../utils/kycFormatters";
+
+// function DetailSection({ title, children }) {
+//   return (
+//     <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+//       <div className="border-b border-slate-200 bg-slate-50 px-5 py-4">
+//         <h2 className="font-semibold text-slate-800">{title}</h2>
+//       </div>
+//       <div className="grid grid-cols-1 gap-x-8 gap-y-5 p-5 sm:grid-cols-2 xl:grid-cols-3">
+//         {children}
+//       </div>
+//     </section>
+//   );
+// }
+
+// function DetailField({ label, value }) {
+//   return (
+//     <div className="min-w-0">
+//       <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-400">
+//         {label}
+//       </p>
+//       <p className="break-words text-sm font-medium text-slate-800">
+//         {displayValue(value)}
+//       </p>
+//     </div>
+//   );
+// }
+
+// export default function KycDetails() {
+//   const params = useParams();
+//   const id = params?.id;
+//   const { record, loading, error } = useKycRecord(id);
+
+//   if (loading) {
+//     return (
+//       <div className="rounded-xl border border-slate-200 bg-white p-12 text-center text-sm text-slate-500">
+//         Loading KYC details...
+//       </div>
+//     );
+//   }
+
+//   if (error || !record) {
+//     return (
+//       <div className="rounded-xl border border-red-200 bg-white p-8">
+//         <p className="text-sm text-red-700">
+//           {error || "KYC record not found."}
+//         </p>
+//         <Link
+//           href="/dashboard/kyc"
+//           className="mt-4 inline-block text-sm font-semibold text-blue-800 underline"
+//         >
+//           Back to KYC list
+//         </Link>
+//       </div>
+//     );
+//   }
+
+//   return (
+//     <div className="w-full min-w-0 space-y-5">
+//       <div className="flex flex-wrap items-center justify-between gap-3">
+//         <div>
+//           <Link
+//             href="/dashboard/kyc"
+//             className="text-sm font-medium text-blue-800 hover:underline"
+//           >
+//             â† Back to KYC list
+//           </Link>
+//           <h1 className="mt-3 text-2xl font-bold text-slate-900">
+//             KYC Details
+//           </h1>
+//           <p className="mt-1 text-sm text-slate-500">
+//             Retailer: {displayValue(record.retailerId)} Â· {displayValue(record.retailerName)}
+//           </p>
+//         </div>
+//         <span className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
+//           Record ID: {displayValue(record.id)}
+//         </span>
+//       </div>
+
+//       <DetailSection title="Personal Information">
+//         <DetailField label="Retailer ID" value={record.retailerId} />
+//         <DetailField label="Retailer Name" value={record.retailerName} />
+//         <DetailField label="Mobile Number" value={maskMobile(record.mobileNo)} />
+//         <DetailField label="PAN Number" value={maskPan(record.panNo)} />
+//         <DetailField label="Aadhaar Number" value={maskAadhaar(record.aadharNo)} />
+//       </DetailSection>
+
+//       <DetailSection title="Verification Details">
+//         <DetailField label="Aadhaar Verification" value={record.aadhaarVerification} />
+//         <DetailField label="Video KYC" value={record.videoKyc} />
+//         <DetailField label="PAN Verification" value={record.panVerification} />
+//         <DetailField label="Face Matched API Response" value={record.apiResponceFaceMatched} />
+//         <DetailField label="Face Liveness API Response" value={record.apiResponceFaceLiveness} />
+//         <DetailField label="Aadhaar eSign" value={record.aadhaarEsign} />
+//       </DetailSection>
+
+//       <DetailSection title="Documents">
+//         <div>
+//           <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-400">Selfie Image</p>
+//           <SelfieImageViewer recordId={record.id} />
+//         </div>
+
+//         <div>
+//           <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-400">Shop Image</p>
+//           <SelfieImageViewer recordId={record.id} endpoint="shop-image" title="Shop Image" />
+//         </div>
+
+//         <div>
+//           <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-400">POI</p>
+//           <SelfieImageViewer recordId={record.id} endpoint="poi" title="POI Document" />
+//         </div>
+
+//         <div>
+//           <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-400">POA</p>
+//           <SelfieImageViewer recordId={record.id} endpoint="poa" title="POA Document" />
+//         </div>
+
+//         <DetailField label="Other Document" value={record.otherDocument} />
+//         <DetailField label="Bank Proof" value={record.bankProof} />
+//         <DetailField
+//           label="Bank Cheque Document"
+//           value={record.bankChequeContentType ? `Available (${record.bankChequeContentType})` : "Not available"}
+//         />
+//       </DetailSection>
+
+//       <DetailSection title="Bank Details">
+//         <DetailField label="Account Holder Name" value={record.bankAccountHolderName} />
+//         <DetailField label="Bank Account Number" value={maskBankAccount(record.bankAccountNumber)} />
+//         <DetailField label="IFSC Code" value={record.bankIfsc} />
+//         <DetailField label="Cheque Content Type" value={record.bankChequeContentType} />
+//       </DetailSection>
+
+//       <DetailSection title="Audit Information">
+//         <DetailField label="Created Date" value={formatDate(record.createdDate)} />
+//         <DetailField label="Updated Date" value={formatDate(record.updatedDate)} />
+//         <DetailField label="Updated By" value={record.updatedBy} />
+//       </DetailSection>
+
+//       <p className="text-xs text-slate-400">
+//         Read-only KYC record. Sensitive identification and bank account values are masked.
+//       </p>
+//     </div>
+//   );
+// }
+
+
+
+==========================================================================================
+FILE: .\src\features\kyc\components\KycList.jsx
+==========================================================================================
+"use client";
+
+import { useMemo, useState } from "react";
+import { useKycRecords } from "../hooks/useKyc";
+import KycTable from "./KycTable";
+
+export default function KycList() {
+  const { records, loading, error, reload } = useKycRecords();
+  const [search, setSearch] = useState("");
+
+  const filteredRecords = useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    if (!query) return records;
+
+    return records.filter((record) =>
+      [
+        record.retailerId,
+        record.retailerName,
+        record.mobileNo,
+        record.panNo,
+      ].some((value) => String(value ?? "").toLowerCase().includes(query))
+    );
+  }, [records, search]);
+
+  return (
+    <section className="w-full min-w-0 space-y-5">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+          KYC Management
+        </h1>
+        {/* <p className="mt-1 text-sm text-slate-500">
+          View and search retailer KYC records.
+        </p> */}
+      </div>
+
+      <div className="flex w-full min-w-0 flex-col gap-3 sm:flex-row">
+        <div className="relative min-w-0 flex-1">
+          <input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search Retailer ID, Name, Mobile, PAN..."
+            className="h-11 w-full rounded-lg border border-slate-300 bg-white px-4 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-700 focus:ring-2 focus:ring-blue-100"
+          />
+        </div>
+
+        <button
+          type="button"
+          onClick={reload}
+          disabled={loading}
+          className="h-11 rounded-lg border border-slate-300 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {loading ? "Loading..." : "Refresh"}
+        </button>
+      </div>
+
+      {error && (
+        <div className="flex flex-col gap-3 rounded-lg border border-red-200 bg-red-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-red-700">{error}</p>
+          <button
+            type="button"
+            onClick={reload}
+            className="text-sm font-semibold text-red-800 underline"
+          >
+            Try again
+          </button>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="rounded-lg border border-slate-200 bg-white px-5 py-14 text-center text-sm text-slate-500">
+          Loading KYC records...
+        </div>
+      ) : !error ? (
+        <>
+          <div className="text-sm text-slate-500">
+            {search.trim()
+              ? `${filteredRecords.length} matching records`
+              : `${records.length} records`}
+          </div>
+          <KycTable records={filteredRecords} />
+        </>
+      ) : null}
+    </section>
+  );
+}
+
+
+==========================================================================================
+FILE: .\src\features\kyc\components\KycRemarkEditor.jsx
+==========================================================================================
+"use client";
+
+import { useEffect, useState } from "react";
+import { updateKycRemark } from "../services/kycService";
+
+export default function KycRemarkEditor({ recordId, remarks }) {
+  const initialRemark = remarks ?? "";
+
+  const [savedRemark, setSavedRemark] = useState(initialRemark);
+  const [draft, setDraft] = useState(initialRemark);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const nextRemark = remarks ?? "";
+    setSavedRemark(nextRemark);
+    setDraft(nextRemark);
+  }, [remarks]);
+
+  function startEditing() {
+    setDraft(savedRemark);
+    setError("");
+    setEditing(true);
+  }
+
+  function cancelEditing() {
+    setDraft(savedRemark);
+    setError("");
+    setEditing(false);
+  }
+
+  async function saveRemark() {
+    if (draft.length > 100) {
+      setError("Remark cannot exceed 100 characters.");
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+
+    try {
+      const result = await updateKycRemark(recordId, draft);
+      const updatedRemark = result?.remarks ?? draft;
+
+      setSavedRemark(updatedRemark);
+      setDraft(updatedRemark);
+      setEditing(false);
+    } catch (err) {
+      setError(err?.message || "Unable to save remark. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!editing) {
+    return (
+      <div className="flex min-w-[180px] max-w-[260px] items-start gap-2">
+        <span className="min-w-0 flex-1 whitespace-normal break-words text-slate-700">
+          {savedRemark || "No remark"}
+        </span>
+
+        <button
+          type="button"
+          onClick={startEditing}
+          className="shrink-0 rounded-md border border-blue-200 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50"
+        >
+          {savedRemark ? "Edit" : "Add Remark"}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex min-w-[220px] max-w-[280px] flex-col gap-2">
+      <textarea
+        value={draft}
+        onChange={(event) => setDraft(event.target.value.slice(0, 100))}
+        maxLength={100}
+        rows={3}
+        disabled={saving}
+        placeholder="Enter remark (maximum 100 characters)"
+        className="w-full resize-y rounded-md border border-slate-300 px-2 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-slate-100"
+      />
+
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs text-slate-500">
+          {draft.length}/100
+        </span>
+
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={cancelEditing}
+            disabled={saving}
+            className="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+          >
+            Cancel
+          </button>
+
+          <button
+            type="button"
+            onClick={saveRemark}
+            disabled={saving}
+            className="rounded-md bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          >
+            {saving ? "Saving..." : "Save"}
+          </button>
+        </div>
+      </div>
+
+      {error && (
+        <p className="text-xs text-red-600" role="alert">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+==========================================================================================
+FILE: .\src\features\kyc\components\KycTable.jsx
+==========================================================================================
+import SelfieImageViewer from "./SelfieImageViewer";
+import KycRemarkEditor from "./KycRemarkEditor";
+import {
+  displayValue,
+  formatDate,
+  maskAadhaar,
+  maskBankAccount,
+  maskMobile,
+  maskPan,
+} from "../utils/kycFormatters";
+
+const imageEndpoints = {
+  selfieImage: "selfie-image",
+  shopImage: "shop-image",
+  poi: "poi",
+  poa: "poa",
+  poi_back: "poi_back",
+  poa_back: "poa_back",
+};
+
+const documentTitles = {
+  selfieImage: "Selfie Image",
+  shopImage: "Shop Image",
+  poi: "POI",
+  poa: "POA",
+  poi_back: "POI Back",
+  poa_back: "POA Back",
+};
+
+const reviewableDocuments = Object.keys(imageEndpoints);
+
+const columns = [
+  // { label: "ID", key: "id" },
+  { label: "Retailer ID", key: "retailerId" },
+  { label: "Retailer Name", key: "retailerName" },
+  { label: "Mobile No", key: "mobileNo", format: maskMobile },
+  { label: "Aadhar No", key: "aadharNo", format: maskAadhaar },
+  { label: "Aadhaar Verification", key: "aadhaarVerification" },
+  { label: "PAN No", key: "panNo", format: maskPan },
+  { label: "PAN Verification", key: "panVerification" },
+  { label: "Bank Account Holder", key: "bankAccountHolderName" },
+  { label: "Bank Account Number", key: "bankAccountNumber", format: maskBankAccount },
+  { label: "Bank IFSC", key: "bankIfsc" },
+  // { label: "Bank Proof", key: "bankProof" },
+  {
+    label: "Bank Cheque Document",
+    key: "bankChequeDocument",
+    getValue: (record) => record.bankChequeContentType ? "Available" : "Not Available",
+  },
+  // { label: "Bank Cheque Content Type", key: "bankChequeContentType" },
+  // { label: "Video KYC", key: "videoKyc" },
+  { label: "Aadhaar Esign", key: "aadhaarEsign" },
+  { label: "Selfie Image", key: "selfieImage" },
+  { label: "Shop Image", key: "shopImage" },
+  { label: "POI", key: "poi" },
+  { label: "POI Back", key: "poi_back" },
+  { label: "POA", key: "poa" },
+  { label: "POA Back", key: "poa_back" },
+  { label: "Other Document", key: "otherDocument" },
+  { label: "Created Date", key: "createdDate", format: formatDate },
+  { label: "Updated Date", key: "updatedDate", format: formatDate },
+  // { label: "Updated By", key: "updatedBy" },
+  // { label: "Face Matched", key: "apiResponceFaceMatched" },
+  // { label: "Face Liveness", key: "apiResponceFaceLiveness" },
+  { label: "Remarks", key: "remarks" },
+];
+
+export default function KycTable({ records = [] }) {
+  return (
+    <div className="w-full min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="w-full overflow-x-auto">
+        <table className="w-full min-w-[3000px] border-separate border-spacing-0 text-left text-sm">
+          <thead>
+            <tr>
+              {columns.map((column) => (
+                <th
+                  key={column.key}
+                  className="whitespace-nowrap border-b border-slate-200 bg-slate-100 px-4 py-3 font-semibold text-slate-700"
+                >
+                  {column.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+
+          <tbody>
+            {records.map((record, index) => (
+              <tr
+                key={record.id}
+                className={index % 2 === 0 ? "bg-white" : "bg-slate-50/70"}
+              >
+                {columns.map((column) => {
+                  const rawValue = column.getValue
+                    ? column.getValue(record)
+                    : record[column.key];
+
+                  const value = column.format
+                    ? column.format(rawValue)
+                    : displayValue(rawValue);
+
+                  return (
+                    <td
+                      key={column.key}
+                      title={reviewableDocuments.includes(column.key)
+                        ? `View ${documentTitles[column.key]}`
+                        : value}
+                      className="max-w-[240px] whitespace-nowrap border-b border-slate-100 px-4 py-3 text-slate-600"
+                    >
+                      {reviewableDocuments.includes(column.key) ? (
+                        <SelfieImageViewer
+                          recordId={record.id}
+                           retailerId={record.retailerId}
+                          endpoint={imageEndpoints[column.key]}
+                          title={documentTitles[column.key]}
+                          enableReview={true}
+                        />
+                      ) : column.key === "remarks" ? (
+                        <KycRemarkEditor
+                          recordId={record.id}
+                          remarks={rawValue}
+                        />
+                      ) : (
+                        <span className="block max-w-[220px] truncate">
+                          {value}
+                        </span>
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+
+            {records.length === 0 && (
+              <tr>
+                <td
+                  colSpan={columns.length}
+                  className="px-6 py-12 text-cente

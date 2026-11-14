@@ -1,0 +1,1471 @@
+﻿r text-slate-500"
+                >
+                  No KYC records found.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="border-t border-slate-200 px-4 py-2 text-xs text-slate-500">
+        Showing {records.length} records Â· Scroll horizontally to view all columns.
+      </div>
+    </div>
+  );
+}
+
+==========================================================================================
+FILE: .\src\features\kyc\components\SelfieImageViewer.jsx
+==========================================================================================
+"use client";
+
+import { useEffect, useState } from "react";
+import { apiBlobRequest } from "@/services/api/apiClient";
+import {
+  updateKycRemark,
+  getKycImageCheckStatus,
+  updateKycImageCheckStatus,
+} from "../services/kycService";
+
+// Detect PDF or common image formats using MIME type and file signature.
+async function detectDocumentType(blob) {
+  if (!blob) return "";
+
+  const declaredType = (blob.type || "")
+    .split(";")[0]
+    .trim()
+    .toLowerCase();
+
+  if (
+    declaredType === "application/pdf" ||
+    declaredType.startsWith("image/")
+  ) {
+    return declaredType;
+  }
+
+  const bytes = new Uint8Array(
+    await blob.slice(0, 12).arrayBuffer()
+  );
+
+  // PDF: %PDF-
+  if (
+    bytes[0] === 0x25 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x44 &&
+    bytes[3] === 0x46 &&
+    bytes[4] === 0x2D
+  ) {
+    return "application/pdf";
+  }
+
+  // PNG
+  if (
+    bytes[0] === 0x89 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x4E &&
+    bytes[3] === 0x47
+  ) {
+    return "image/png";
+  }
+
+  // JPEG
+  if (
+    bytes[0] === 0xFF &&
+    bytes[1] === 0xD8 &&
+    bytes[2] === 0xFF
+  ) {
+    return "image/jpeg";
+  }
+
+  // GIF
+  if (
+    bytes[0] === 0x47 &&
+    bytes[1] === 0x49 &&
+    bytes[2] === 0x46
+  ) {
+    return "image/gif";
+  }
+
+  // WEBP
+  if (
+    bytes[0] === 0x52 &&
+    bytes[1] === 0x49 &&
+    bytes[2] === 0x46 &&
+    bytes[3] === 0x46 &&
+    bytes[8] === 0x57 &&
+    bytes[9] === 0x45 &&
+    bytes[10] === 0x42 &&
+    bytes[11] === 0x50
+  ) {
+    return "image/webp";
+  }
+
+  return "";
+}
+
+const statusDocumentNames = {
+  "selfie-image": "selfie_image",
+  "shop-image": "shop_image",
+  poi: "poi",
+  poa: "poa",
+  poi_back: "poi_back",
+  poa_back: "poa_back",
+};
+
+const statusFields = {
+  "selfie-image": "selfieImage",
+  "shop-image": "shopImage",
+  poi: "poi",
+  poa: "poa",
+  poi_back: "poiBack",
+  poa_back: "poaBack",
+};
+
+const clickableFields = {
+  "selfie-image": "selfieClickable",
+  "shop-image": "shopImageClickable",
+  poi: "poiClickable",
+  poi_back: "poiBackClickable",
+  poa: "poaClickable",
+  poa_back: "poaBackClickable",
+};
+
+export default function SelfieImageViewer({
+  recordId,
+  retailerId,
+  endpoint = "selfie-image",
+  title = "Selfie Image",
+  enableReview = false,
+}) {
+  const [open, setOpen] = useState(false);
+  const [imageUrl, setImageUrl] = useState("");
+  const [fileType, setFileType] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const [reviewStatus, setReviewStatus] = useState(null);
+  const [clickable, setClickable] = useState(false);
+  const [savingReview, setSavingReview] = useState(false);
+  const [reviewError, setReviewError] = useState("");
+
+  const [showRejectReason, setShowRejectReason] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [savingRejection, setSavingRejection] = useState(false);
+  const [rejectError, setRejectError] = useState("");
+
+  // Load saved review status and click permission from backend.
+  useEffect(() => {
+    if (!enableReview || !retailerId) {
+      setReviewStatus(null);
+      setClickable(false);
+      return;
+    }
+
+    let active = true;
+
+    async function loadReviewStatus() {
+      try {
+        const data = await getKycImageCheckStatus(retailerId);
+
+        if (active) {
+          const status = data?.[statusFields[endpoint]];
+
+          setReviewStatus(
+            status === "VERIFIED"
+              ? "verified"
+              : status === "REJECTED"
+                ? "rejected"
+                : null
+          );
+
+          setClickable(data?.[clickableFields[endpoint]] === true);
+        }
+      } catch (error) {
+        console.error("Unable to load KYC image status:", error);
+        if (active) setClickable(false);
+      }
+    }
+
+    loadReviewStatus();
+
+    const handleStatusUpdated = () => loadReviewStatus();
+
+    window.addEventListener("kyc-image-status-updated", handleStatusUpdated);
+
+    return () => {
+      active = false;
+      window.removeEventListener("kyc-image-status-updated", handleStatusUpdated);
+    };
+  }, [enableReview, retailerId, endpoint]);
+
+  // Revoke image URL when component changes or unmounts.
+  useEffect(() => {
+    return () => {
+      if (imageUrl) URL.revokeObjectURL(imageUrl);
+    };
+  }, [imageUrl]);
+
+  // Save VERIFIED status in MySQL.
+  async function handleReview(status) {
+    if (!retailerId || !statusDocumentNames[endpoint]) {
+      setReviewError("Unable to identify this KYC document.");
+      return;
+    }
+
+    setSavingReview(true);
+    setReviewError("");
+
+    try {
+      await updateKycImageCheckStatus(
+        retailerId,
+        statusDocumentNames[endpoint],
+        status === "verified" ? "VERIFIED" : "REJECTED"
+      );
+
+      // Update UI only after backend confirms success.
+      setReviewStatus(status);
+      window.dispatchEvent(new Event("kyc-image-status-updated"));
+      handleClose();
+    } catch (err) {
+      setReviewError(
+        err?.message || "Unable to update document status. Please try again."
+      );
+    } finally {
+      setSavingReview(false);
+    }
+  }
+
+  // Save rejection remark and then REJECTED status.
+  async function handleRejectSave() {
+    const reason = rejectionReason.trim();
+
+    if (!reason) {
+      setRejectError("Please enter a rejection reason.");
+      return;
+    }
+
+    if (reason.length > 100) {
+      setRejectError("Rejection reason cannot exceed 100 characters.");
+      return;
+    }
+
+    if (!retailerId || !statusDocumentNames[endpoint]) {
+      setRejectError("Unable to identify this KYC document.");
+      return;
+    }
+
+    setSavingRejection(true);
+    setRejectError("");
+
+    try {
+      // First save the existing KYC remark.
+      await updateKycRemark(recordId, reason);
+
+      // Notify other KYC components about the updated remark.
+      window.dispatchEvent(
+        new CustomEvent("kyc-remark-updated", {
+          detail: { recordId, remarks: reason },
+        })
+      );
+
+      // Then save REJECTED status in MySQL.
+      await updateKycImageCheckStatus(
+        retailerId,
+        statusDocumentNames[endpoint],
+        "REJECTED"
+      );
+
+      // Update UI only after both API calls succeed.
+      setReviewStatus("rejected");
+      window.dispatchEvent(new Event("kyc-image-status-updated"));
+      handleClose();
+    } catch (err) {
+      setRejectError(
+        err?.message ||
+          "Unable to save rejection. Please try again."
+      );
+    } finally {
+      setSavingRejection(false);
+    }
+  }
+
+  async function handleOpen() {
+    setOpen(true);
+    setError("");
+    setLoading(true);
+
+    if (!recordId) {
+      setError("Image not available for this record.");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const blob = await apiBlobRequest(
+        `/api/kyc/${encodeURIComponent(recordId)}/${endpoint}`
+      );
+
+      const detectedType = await detectDocumentType(blob);
+
+      if (!blob || !detectedType) {
+        throw new Error("Unsupported document format");
+      }
+
+      setFileType(detectedType);
+      const url = URL.createObjectURL(blob);
+
+      setImageUrl((previousUrl) => {
+        if (previousUrl) URL.revokeObjectURL(previousUrl);
+        return url;
+      });
+    } catch (err) {
+      const status = err?.status ?? err?.response?.status;
+      const message = String(err?.message ?? "");
+
+      if (status === 404 || /\b404\b/.test(message)) {
+        setError(`${title} not found.`);
+      } else if (
+        status === 415 ||
+        /\b415\b|unsupported media type/i.test(message)
+      ) {
+        setError("Image not available for this record.");
+      } else {
+        setError(`Unable to load ${title.toLowerCase()}. Please try again.`);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleClose() {
+    setOpen(false);
+    setError("");
+    setReviewError("");
+    setShowRejectReason(false);
+    setRejectionReason("");
+    setRejectError("");
+
+    setImageUrl((previousUrl) => {
+      if (previousUrl) URL.revokeObjectURL(previousUrl);
+      return "";
+    });
+  }
+
+  return (
+    <>
+      <span className="inline-flex items-center gap-1.5">
+        <button
+          type="button"
+          onClick={handleOpen}
+          disabled={!clickable || loading}
+          className="rounded-md border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          View
+        </button>
+
+        {enableReview && reviewStatus === "rejected" && (
+          <span
+            title="Rejected"
+            aria-label="Rejected"
+            className="flex h-5 w-5 items-center justify-center rounded-full bg-red-100 text-sm font-bold text-red-600"
+          >
+            âœ•
+          </span>
+        )}
+
+        {enableReview && reviewStatus === "verified" && (
+          <span
+            title="Verified"
+            aria-label="Verified"
+            className="flex h-5 w-5 items-center justify-center rounded-full bg-green-100 text-sm font-bold text-green-600"
+          >
+            âœ“
+          </span>
+        )}
+      </span>
+
+      {open && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4"
+          onClick={handleClose}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={title}
+            className="flex max-h-[90vh] w-full max-w-xl flex-col overflow-y-auto rounded-xl bg-white p-2 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-slate-700">
+                {title}
+              </h2>
+
+              <button
+                type="button"
+                onClick={handleClose}
+                aria-label="Close"
+                className="rounded-md px-3 py-1 text-xl text-slate-500 hover:bg-slate-100"
+              >
+                Ã—
+              </button>
+            </div>
+
+            {loading && (
+              <div className="flex flex-col items-center justify-center gap-3 py-12">
+                <div
+                  className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600"
+                  role="status"
+                  aria-label={`Loading ${title}`}
+                />
+                <p className="text-sm text-slate-500">
+                  Loading {title.toLowerCase()}...
+                </p>
+              </div>
+            )}
+
+            {error && (
+              <div className="flex flex-col items-center gap-2 rounded-lg bg-slate-50 p-8 text-center">
+                <span className="text-3xl" aria-hidden="true">ðŸ“·</span>
+                <p className="text-sm font-semibold text-slate-700">
+                  {error}
+                </p>
+              </div>
+            )}
+
+            {imageUrl && !loading && !error && (
+              <>
+                {fileType === "application/pdf" ? (
+                  <iframe
+                    src={imageUrl}
+                    title={title}
+                    className="h-[65vh] w-full rounded-lg"
+                  />
+                ) : (
+                  <div className="flex max-h-[50vh] justify-center overflow-auto rounded-lg bg-slate-50 p-2">
+                    <img
+                      src={imageUrl}
+                      alt={title}
+                      className="max-h-[50vh] max-w-full object-contain"
+                    />
+                  </div>
+                )}
+
+                {enableReview && (
+                  <div className="mt-1 border-t border-slate-200 pt-1">
+                    {!showRejectReason ? (
+                      <div className="flex justify-center gap-6">
+                        <button
+                          type="button"
+                          disabled={savingReview || savingRejection}
+                          onClick={() => handleReview("verified")}
+                          className={`rounded-lg border px-6 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                            reviewStatus === "verified"
+                              ? "border-green-500 bg-green-100 text-green-800"
+                              : "border-green-200 bg-green-50 text-green-700 hover:bg-green-100"
+                          }`}
+                        >
+                          {savingReview ? "Saving..." : "âœ“ Verified"}
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={savingReview || savingRejection}
+                          onClick={() => {
+                            setShowRejectReason(true);
+                            setRejectError("");
+                            setReviewError("");
+                          }}
+                          className="rounded-lg border border-red-200 bg-red-50 px-6 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          âœ• Reject
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <label className="block text-sm font-semibold text-slate-800">
+                          Rejection Reason
+                        </label>
+
+                        <textarea
+                          value={rejectionReason}
+                          onChange={(event) => {
+                            setRejectionReason(event.target.value.slice(0, 100));
+                            setRejectError("");
+                          }}
+                          maxLength={100}
+                          rows={3}
+                          placeholder="Enter reason for rejection..."
+                          className="w-full rounded-lg border border-slate-300 p-0 text-sm text-slate-800 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+                        />
+
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-slate-500">
+                            {rejectionReason.length}/100 characters
+                          </span>
+
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              disabled={savingRejection}
+                              onClick={() => {
+                                setShowRejectReason(false);
+                                setRejectionReason("");
+                                setRejectError("");
+                              }}
+                              className="rounded-lg border border-slate-300 px-4 py-1 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                            >
+                              Cancel
+                            </button>
+
+                            <button
+                              type="button"
+                              disabled={savingRejection || savingReview}
+                              onClick={handleRejectSave}
+                              className="rounded-lg bg-red-600 px-5 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {savingRejection ? "Saving..." : "OK"}
+                            </button>
+                          </div>
+                        </div>
+
+                        {rejectError && (
+                          <p className="text-sm font-medium text-red-600">
+                            {rejectError}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {reviewError && (
+                      <p className="mt-2 text-center text-sm font-medium text-red-600">
+                        {reviewError}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+==========================================================================================
+FILE: .\src\features\kyc\hooks\useKyc.js
+==========================================================================================
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { getKycRecords, getKycRecordById } from "../services/kycService";
+
+export function useKycRecords() {
+  const [records, setRecords] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const loadRecords = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError("");
+      const data = await getKycRecords();
+      setRecords(Array.isArray(data) ? data : data?.content ?? data?.data ?? []);
+    } catch (err) {
+      setError(err.message || "Unable to load KYC records.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadRecords();
+  }, [loadRecords]);
+
+  return { records, loading, error, reload: loadRecords };
+}
+
+export function useKycRecord(id) {
+  const [record, setRecord] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!id) return;
+
+    let active = true;
+
+    async function loadRecord() {
+      try {
+        setLoading(true);
+        setError("");
+        const data = await getKycRecordById(id);
+        if (active) setRecord(data);
+      } catch (err) {
+        if (active) setError(err.message || "Unable to load KYC details.");
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    loadRecord();
+    return () => { active = false; };
+  }, [id]);
+
+  return { record, loading, error };
+}
+
+==========================================================================================
+FILE: .\src\features\kyc\services\kycService.js
+==========================================================================================
+
+import { apiRequest } from "@/services/api/apiClient";
+
+export async function getKycRecords() {
+  return apiRequest("/api/kyc");
+}
+
+export async function getKycRecordById(id) {
+  if (!id) {
+    throw new Error("KYC record ID is required.");
+  }
+
+  return apiRequest(`/api/kyc/${encodeURIComponent(id)}`);
+}
+
+export async function updateKycRemark(id, remarks) {
+  if (!id) {
+    throw new Error("KYC record ID is required.");
+  }
+
+  return apiRequest(`/api/kyc/${encodeURIComponent(id)}/remarks`, {
+    method: "PUT",
+    body: { remarks },
+  });
+}
+
+// Get KYC image review status from database.
+export async function getKycImageCheckStatus(retailerId) {
+  if (!retailerId) {
+    throw new Error("Retailer ID is required.");
+  }
+
+  return apiRequest(
+    `/api/kyc/${encodeURIComponent(retailerId)}/image-check-status`
+  );
+}
+
+// Update KYC image review status in database.
+export async function updateKycImageCheckStatus(
+  retailerId,
+  document,
+  status
+) {
+  if (!retailerId) {
+    throw new Error("Retailer ID is required.");
+  }
+
+  return apiRequest(
+    `/api/kyc/${encodeURIComponent(retailerId)}/image-check-status`,
+    {
+      method: "PUT",
+      body: { document, status },
+    }
+  );
+}
+
+
+==========================================================================================
+FILE: .\src\features\kyc\utils\kycFormatters.js
+==========================================================================================
+export function maskAadhaar(value) {
+  if (!value) return "—";
+  const digits = String(value).replace(/\D/g, "");
+  if (digits.length < 4) return "XXXX";
+return digits.replace(/(\d{4})(?=\d)/g, "$1 ");
+}
+
+export function maskBankAccount(value) {
+  if (!value) return "—";
+  // const account = String(value).replace(/\s/g, "");
+  // if (account.length <= 4) return "X".repeat(account.length);
+  // return `${"X".repeat(account.length - 4)}${account.slice(-4)}`;
+  return String(value);
+}
+
+export function maskPan(value) {
+  if (!value) return "—";
+  // const pan = String(value);
+  // if (pan.length <= 4) return "XXXX";
+  // return `${pan.slice(0, 2)}XXXXX${pan.slice(-2)}`;
+  return String(value);
+}
+
+export function maskMobile(value) {
+  if (!value) return "—";
+  // const mobile = String(value);
+  // if (mobile.length <= 4) return "X".repeat(mobile.length);
+  // return `${"X".repeat(mobile.length - 4)}${mobile.slice(-4)}`;
+  return String(value);
+}
+
+export function formatDate(value) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+export function displayValue(value) {
+  if (value === null || value === undefined || value === "") return "—";
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (typeof value === "object") return "—";
+  return String(value);
+}
+
+
+==========================================================================================
+FILE: .\src\features\profile\components\AccountActivity.jsx
+==========================================================================================
+// import ProfileSection from "./ProfileSection";
+// import ProfileInfoItem from "./ProfileInfoItem";
+
+// export default function AccountActivity() {
+//   return (
+//     <ProfileSection
+//       title="Account Activity"
+//       description="Important account creation and update information."
+//     >
+//       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+//         <ProfileInfoItem label="Account Created" value="" />
+//         <ProfileInfoItem label="Last Updated" value="" />
+//         <ProfileInfoItem label="Created By" value="" />
+//       </div>
+//     </ProfileSection>
+//   );
+// }
+
+
+==========================================================================================
+FILE: .\src\features\profile\components\ChangePasswordModal.jsx
+==========================================================================================
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { changePassword } from "../services/changePasswordService";
+
+const STORAGE_KEYS = [
+  "manthanpayAuthToken",
+  "manthanpayLoggedInUser",
+  "manthanpayLoggedInEmail",
+  "manthanpayLoggedInRole",
+  "manthanpayUserId",
+];
+
+export default function ChangePasswordModal({ onClose }) {
+  const router = useRouter();
+
+  const [form, setForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+
+  const [showPasswords, setShowPasswords] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+
+  function handleChange(event) {
+    const { name, value } = event.target;
+
+    setForm((previous) => ({
+      ...previous,
+      [name]: value,
+    }));
+
+    setError("");
+  }
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+
+    if (loading) return;
+
+    if (form.newPassword !== form.confirmPassword) {
+      setError("New password and confirm password do not match.");
+      return;
+    }
+
+    if (form.newPassword === form.currentPassword) {
+      setError("New password must be different from current password.");
+      return;
+    }
+
+    if (form.newPassword.length < 12 || form.newPassword.length > 72) {
+      setError("New password must be between 12 and 72 characters.");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    try {
+      await changePassword(form);
+
+      // Backend has already revoked all active refresh sessions.
+      // Clear local authentication after successful password change.
+      STORAGE_KEYS.forEach((key) => {
+        localStorage.removeItem(key);
+      });
+
+      setForm({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+
+      setSuccess(true);
+    } catch (err) {
+      setError(err.message || "Unable to change password.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleLoginRedirect() {
+    router.replace("/login");
+  }
+
+  const fields = [
+    {
+      name: "currentPassword",
+      label: "Current Password",
+      placeholder: "Enter current password",
+      autoComplete: "current-password",
+    },
+    {
+      name: "newPassword",
+      label: "New Password",
+      placeholder: "Enter new password",
+      autoComplete: "new-password",
+    },
+    {
+      name: "confirmPassword",
+      label: "Confirm New Password",
+      placeholder: "Confirm new password",
+      autoComplete: "new-password",
+    },
+  ];
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/50 p-4"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !loading && !success) {
+          onClose();
+        }
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="change-password-title"
+        className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl sm:p-8"
+      >
+        {success ? (
+          <div className="py-5 text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-3xl text-green-600">
+              âœ“
+            </div>
+
+            <h2 className="mt-5 text-xl font-bold text-slate-900">
+              Password Changed Successfully
+            </h2>
+
+            <p className="mt-3 text-sm text-slate-600">
+              Your password has been changed successfully.
+              Please sign in again using your new password.
+            </p>
+
+            <button
+              type="button"
+              onClick={handleLoginRedirect}
+              className="mt-7 w-full rounded-lg bg-blue-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-800"
+            >
+              Go to Login
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-start justify-between gap-4">
+
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={loading}
+                aria-label="Close"
+                className="ml-auto text-2xl leading-none text-slate-500 hover:text-slate-800 disabled:opacity-50"
+              >
+                Ã—
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className=" space-y-2">
+              {fields.map((field) => (
+                <div key={field.name}>
+                  <label
+                    htmlFor={field.name}
+                    className="mb-2 block text-sm font-medium text-slate-700"
+                  >
+                    {field.label}
+                  </label>
+
+                  <input
+                    id={field.name}
+                    name={field.name}
+                    type={showPasswords ? "text" : "password"}
+                    value={form[field.name]}
+                    onChange={handleChange}
+                    placeholder={field.placeholder}
+                    autoComplete={field.autoComplete}
+                    required
+                    maxLength={72}
+                    minLength={
+                      field.name === "newPassword" ||
+                      field.name === "confirmPassword"
+                        ? 12
+                        : undefined
+                    }
+                    disabled={loading}
+                    className="w-full rounded-lg border border-slate-300 px-4 py-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-600 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100"
+                  />
+                </div>
+              ))}
+
+              <label className="flex cursor-pointer items-center gap-3 text-sm text-slate-600">
+                <input
+                  type="checkbox"
+                  checked={showPasswords}
+                  onChange={(event) =>
+                    setShowPasswords(event.target.checked)
+                  }
+                  className="h-4 w-3 accent-blue-500"
+                />
+                Show password
+              </label>
+
+              <p className="text-xs text-slate-500">
+                New password must contain between 12 and 72 characters.
+              </p>
+
+              {error && (
+                <div
+                  role="alert"
+                  className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+                >
+                  {error}
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  disabled={loading}
+                  className="flex-1 rounded-lg border border-slate-200 px-2 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex-1 rounded-lg bg-blue-500 px-1 py-1 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {loading ? "Updating..." : "Update Password"}
+                </button>
+              </div>
+            </form>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+==========================================================================================
+FILE: .\src\features\profile\components\PersonalInformation.jsx
+==========================================================================================
+import ProfileSection from "./ProfileSection";
+import ProfileInfoItem from "./ProfileInfoItem";
+
+export default function PersonalInformation({ user }) {
+  return (
+    <ProfileSection
+      title="Personal Information"
+      description="Your basic personal and contact details."
+    >
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <ProfileInfoItem label="Full Name" value={user.name} />
+        <ProfileInfoItem label="User ID" value={user.id} />
+        <ProfileInfoItem label="Email Address" value={user.email} />
+        <ProfileInfoItem label="Mobile Number" value="" />
+        <ProfileInfoItem label="Gender" value="" />
+      </div>
+    </ProfileSection>
+  );
+}
+
+
+==========================================================================================
+FILE: .\src\features\profile\components\ProfileHeader.jsx
+==========================================================================================
+export default function ProfileHeader({ user, formattedRole }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-50 text-blue-700">
+          <svg
+            viewBox="0 0 24 24"
+            className="h-8 w-8"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="8" r="3.5" />
+            <path d="M5 20c.7-3.5 3.1-5.3 7-5.3s6.3 1.8 7 5.3" />
+          </svg>
+        </div>
+
+        <div>
+          <h2 className="text-lg font-bold text-slate-900">{user.name}</h2>
+          <p className="mt-1 text-sm text-slate-500">{formattedRole}</p>
+          <p className="mt-1 text-xs text-slate-400">
+            User ID: {user.id || "Not available"}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+FILE: .\src\features\profile\components\ProfileInfoItem.jsx
+==========================================================================================
+export default function ProfileInfoItem({ label, value }) {
+  return (
+    <div>
+      <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">
+        {label}
+      </p>
+      <p className="break-words text-sm font-semibold text-slate-800">
+        {value || "Not available"}
+      </p>
+    </div>
+  );
+}
+
+
+==========================================================================================
+FILE: .\src\features\profile\components\ProfileSection.jsx
+==========================================================================================
+export default function ProfileSection({
+  title,
+  description,
+  children,
+}) {
+  return (
+    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+      <div className="mb-5">
+        <h2 className="text-base font-bold text-slate-800">{title}</h2>
+        <p className="mt-1 text-sm text-slate-500">{description}</p>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+
+==========================================================================================
+FILE: .\src\features\profile\components\SecurityInformation.jsx
+==========================================================================================
+// import ProfileSection from "./ProfileSection";
+// import ProfileInfoItem from "./ProfileInfoItem";
+
+// export default function SecurityInformation() {
+//   return (
+//     <ProfileSection
+//       title="Security"
+//       description="Security information related to your account."
+//     >
+//       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+//         <ProfileInfoItem label="Two-Factor Authentication" value="" />
+//         <ProfileInfoItem label="Last Password Change" value="" />
+//         <ProfileInfoItem label="Last Login" value="" />
+//         <ProfileInfoItem label="Active Sessions" value="" />
+//       </div>
+//       <p className="mt-5 rounded-lg bg-blue-50 p-3 text-xs text-blue-800">
+//         Security details will be displayed after secure backend integration.
+//       </p>
+//     </ProfileSection>
+//   );
+// }
+
+
+==========================================================================================
+FILE: .\src\features\profile\components\WorkInformation.jsx
+==========================================================================================
+// import ProfileSection from "./ProfileSection";
+// import ProfileInfoItem from "./ProfileInfoItem";
+
+// export default function WorkInformation({ formattedRole }) {
+//   return (
+//     <ProfileSection
+//       title="Work Information"
+//       description="Your organization, department and assigned role details."
+//     >
+//       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+//         <ProfileInfoItem label="Role" value={formattedRole} />
+//         <ProfileInfoItem label="Department" value="" />
+//         <ProfileInfoItem label="Designation" value="" />
+//         <ProfileInfoItem label="Account Status" value="" />
+//       </div>
+//       <p className="mt-5 rounded-lg bg-blue-50 p-3 text-xs text-blue-800">
+//         Work information will appear after secure backend integration.
+//       </p>
+//     </ProfileSection>
+//   );
+// }
+
+
+==========================================================================================
+FILE: .\src\features\profile\hooks\useProfile.js
+==========================================================================================
+"use client";
+
+import { useEffect, useState } from "react";
+import {
+  getCurrentProfile,
+  formatProfileRole,
+} from "../services/profileService";
+
+export default function useProfile() {
+  const [user, setUser] = useState({
+    name: "Administrator",
+    id: "",
+    email: "",
+    role: "",
+  });
+
+  useEffect(() => {
+    setUser(getCurrentProfile());
+  }, []);
+
+  return {
+    user,
+    formattedRole: formatProfileRole(user.role),
+  };
+}
+
+
+==========================================================================================
+FILE: .\src\features\profile\index.js
+==========================================================================================
+"use client";
+
+import useProfile from "./hooks/useProfile";
+import ProfileHeader from "./components/ProfileHeader";
+import PersonalInformation from "./components/PersonalInformation";
+import WorkInformation from "./components/WorkInformation";
+import SecurityInformation from "./components/SecurityInformation";
+import AccountActivity from "./components/AccountActivity";
+
+export default function ProfileFeature() {
+  const { user, formattedRole } = useProfile();
+
+  return (
+    <div className="min-h-screen p-4 sm:p-6 lg:p-8">
+      <div className="mx-auto max-w-6xl space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">My Profile</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            View your personal and account information.
+          </p>
+        </div>
+
+        <ProfileHeader user={user} formattedRole={formattedRole} />
+        <PersonalInformation user={user} />
+        {/* <WorkInformation formattedRole={formattedRole} /> */}
+        {/* <SecurityInformation /> */}
+        {/* <AccountActivity /> */}
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+FILE: .\src\features\profile\services\changePasswordService.js
+==========================================================================================
+import { apiRequest } from "@/services/api/apiClient";
+
+export async function changePassword({
+  currentPassword,
+  newPassword,
+  confirmPassword,
+}) {
+  return apiRequest("/api/auth/change-password", {
+    method: "POST",
+    body: {
+      currentPassword,
+      newPassword,
+      confirmPassword,
+    },
+  });
+}
+
+==========================================================================================
+FILE: .\src\features\profile\services\profileService.js
+==========================================================================================
+const STORAGE_KEYS = {
+  name: "manthanpayLoggedInUser",
+  id: "manthanpayUserId",
+  email: "manthanpayLoggedInEmail",
+  role: "manthanpayLoggedInRole",
+};
+
+export function getCurrentProfile() {
+  if (typeof window === "undefined") {
+    return {
+      name: "Administrator",
+      id: "",
+      email: "",
+      role: "",
+    };
+  }
+
+  return {
+    name: localStorage.getItem(STORAGE_KEYS.name) || "Administrator",
+    id: localStorage.getItem(STORAGE_KEYS.id) || "",
+    email: localStorage.getItem(STORAGE_KEYS.email) || "",
+    role: localStorage.getItem(STORAGE_KEYS.role) || "",
+  };
+}
+
+export function formatProfileRole(role) {
+  if (role === "SUPER_ADMIN") return "Super Admin";
+  if (role === "ADMIN") return "Admin";
+  return role || "Not available";
+}
+
+
+==========================================================================================
+FILE: .\src\services\api\apiClient.js
+==========================================================================================
+const API_BASE_URL = (
+  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080"
+).replace(/\/+$/, "");
+
+const ACCESS_TOKEN_KEY = "manthanpayAuthToken";
+const CSRF_ENDPOINT = "/api/auth/csrf";
+const REFRESH_ENDPOINT = "/api/auth/refresh";
+
+let refreshPromise = null;
+
+function isAuthEndpoint(endpoint) {
+  const path = endpoint.split("?")[0];
+
+  // Change password is a protected endpoint.
+  // It requires Bearer access token and normal 401 refresh handling.
+  return (
+    path.startsWith("/api/auth/") &&
+    path !== "/api/auth/change-password"
+  );
+}
+
+function readAccessToken() {
+  return window.localStorage.getItem(ACCESS_TOKEN_KEY);
+}
+
+function saveAccessToken(token) {
+  if (typeof token !== "string" || !token.trim()) {
+    throw new Error("Refresh response did not contain a valid access token.");
+  }
+
+  window.localStorage.setItem(ACCESS_TOKEN_KEY, token);
+}
+
+function clearAuthenticationAndRedirect() {
+  window.localStorage.removeItem(ACCESS_TOKEN_KEY);
+
+  if (window.location.pathname !== "/login") {
+    window.location.assign("/login");
+  }
+}
+
+async function readResponseData(response) {
+  const responseText = await response.text();
+
+  if (!responseText) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(responseText);
+  } catch {
+    return responseText;
+  }
+}
+
+function getErrorMessage(response, data) {
+  let message = `Request failed: ${response.status}`;
+
+  if (typeof data === "string" && data.trim()) {
+    message = data;
+  } else if (data && typeof data === "object") {
+    message = data.message || data.error || message;
+  } else if (response.statusText) {
+    message = `${message} ${response.statusText}`;
+  }
+
+  return message;
+}
+
+function createApiError(response, data) {
+  const error = new Error(getErrorMessage(response, data));
+  error.status = response.status;
+  error.data = data;
+  return error;
+}
+
+async function getCsrfToken() {
+  const response = await fetch(`${API_BASE_URL}${CSRF_ENDPOINT}`, {
+    method: "GET",
+    credentials: "include",
+    headers: {
+      Accept: "application/json",
+    },
+    cache: "no-store",
+  });
+
+  const data = await readResponseData(response);
+
+  if (!response.ok) {
+    const error = createApiError(response, data);
+
+    if (response.status === 401 || response.status === 403) {
+      error.authenticationRejected = true;
+    }
+
+    throw error;
+  }
+
+  const token =
+    data?.token ||
+    data?.csrfToken ||
+    data?._csrf?.token ||
+    data?.data?.token ||
+    "";
+
+  if (typeof token !== "string" || !token.trim()) {
+    throw new Error(
+      "CSRF token was not found in the /api/auth/csrf response."
+    );
+  }
+
+  return token;
+}
+
+async function performTokenRefresh() {
+  const csrfToken = await getCsrfToken();
+
+  const response = await fetch(`${API_BASE_URL}${REFRESH_ENDPOINT}`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      Accept: "application/json",
+      "X-XSRF-TOKEN": csrfToken,
+    },
+    cache: "no-store",
+  });
+
+  const data = await readResponseData(response);
+
+  if (!response.ok) {
+    const error = createApiError(response, data);
+
+    if (response.status === 401 || response.status === 403) {
+      error.authenticationRejected = true;
+    }
+
+    throw error;
+  }
+
+  const accessToken =
+    data?.accessToken ||
+    data?.data?.accessToken ||
+    "";
+
+  saveAccessToken(accessToken);
+
+  return accessToken;
+}
+
+async function getFreshAccessToken(failedToken) {
+  const currentToken = readAccessToken();
+
+  // Kisi doosri request ne pehle hi token refresh kar diya ho.
+  if (currentToken && currentToken !== failedToken) {
+    return currentToken;
+  }
+
+  // Concurrent 401 requests ke liye ek hi refresh request.
+  if (!refreshPromise) {
+    refreshPromise = performTokenRefresh().finally(() => {
+      refreshPromise = null;
+    });
+  }
+
+  try {
+    return await refreshPromise;
+  } catch (error) {
+    if (error.authenticationRejected) {
+      clearAuthenticationAndRedirect();
+    }
+
+    throw error;
+  }
+}
+
+function prepareRequest(endpoint, options, token) {
+  const isAuth = isAuthEndpoint(endpoint);
+  const headers = new Headers(options.headers || {});
+
+  headers.set("Accept", "application/json");
+
+  const body = options.body;
+
+  const isFormData =
+    typeof FormData !== "undefined" && body instanceof FormData;
+
+  const isPlainObject =
+    body !== null &&
+    typeof body === "object" &&
+    !isFormData &&
+    (Object.getPrototypeOf(body) === Object.prototype ||
+      Object.getPrototypeOf(body) === null);
+
+  if (isPlainObject) {
+    headers.set("Co

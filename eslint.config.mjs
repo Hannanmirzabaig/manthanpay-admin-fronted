@@ -1,4 +1,4 @@
-import { dirname } from "path";
+﻿import { dirname } from "path";
 import { fileURLToPath } from "url";
 import { FlatCompat } from "@eslint/eslintrc";
 
@@ -14,6 +14,8 @@ const eslintConfig = [
   {
     ignores: [
       "node_modules/**",
+      "backups/**",
+      "backup-archive/**",
       ".next/**",
       "out/**",
       "build/**",
@@ -23,3 +25,4 @@ const eslintConfig = [
 ];
 
 export default eslintConfig;
+
